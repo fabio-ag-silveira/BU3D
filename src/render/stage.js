@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { ROUND_MODIFIERS, SKY_THEMES, WEAPONS } from "../config.js";
+import { CRATES, ROUND_MODIFIERS, SKY_THEMES, WEAPONS } from "../config.js";
 import { getMuzzle, getLaunchVelocity, powerToVelocity, projectileAt } from "../physics.js";
 import { VoxelWorld, BUILDINGS } from "../world.js";
 import { Sky, ARENA_CENTER } from "./sky.js";
@@ -52,6 +52,10 @@ export class Stage {
 
     this.createProjectileAssets();
     this.createRain();
+    this.crateMeshes = new Map();
+    this.crateBox = new THREE.BoxGeometry(3, 3, 3).translate(0, 1.5, 0);
+    this.crateStripe = new THREE.BoxGeometry(3.1, 0.6, 3.1).translate(0, 1.5, 0);
+    this.canopyGeometry = new THREE.SphereGeometry(4, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
     this.createGuide();
     this.resize();
   }
@@ -284,6 +288,83 @@ export class Stage {
     this.guide.material.color.set(state.charge.active ? "#ffffff" : player.color);
   }
 
+  createCrateMesh(crate) {
+    const kind = CRATES.types[crate.type] ?? CRATES.types.hp;
+    const group = new THREE.Group();
+    const box = new THREE.Mesh(this.crateBox, new THREE.MeshStandardMaterial({ color: "#8a6a44", roughness: 0.8 }));
+    box.castShadow = true;
+    group.add(box);
+    const stripe = new THREE.Mesh(this.crateStripe, new THREE.MeshStandardMaterial({
+      color: kind.color, emissive: kind.color, emissiveIntensity: 0.6,
+    }));
+    group.add(stripe);
+    const beacon = new THREE.Mesh(
+      new THREE.RingGeometry(3, 3.6, 32).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: kind.color, transparent: true, opacity: 0.6, depthWrite: false, toneMapped: false }),
+    );
+    beacon.position.y = 0.12;
+    group.add(beacon);
+    const beam = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.7, 0.7, 60, 12, 1, true).translate(0, 30, 0),
+      new THREE.MeshBasicMaterial({
+        color: kind.color, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending,
+        depthWrite: false, side: THREE.DoubleSide, toneMapped: false, fog: false,
+      }),
+    );
+    group.add(beam);
+    const chute = new THREE.Group();
+    const canopy = new THREE.Mesh(this.canopyGeometry, new THREE.MeshStandardMaterial({
+      color: "#f1f1f1", side: THREE.DoubleSide, roughness: 0.9,
+    }));
+    canopy.scale.y = 0.6;
+    canopy.position.y = 9;
+    chute.add(canopy);
+    const lines = new THREE.LineSegments(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-1.2, 2.6, -1.2), new THREE.Vector3(-3.6, 9, -1.6),
+        new THREE.Vector3(1.2, 2.6, -1.2), new THREE.Vector3(3.6, 9, -1.6),
+        new THREE.Vector3(-1.2, 2.6, 1.2), new THREE.Vector3(-3.6, 9, 1.6),
+        new THREE.Vector3(1.2, 2.6, 1.2), new THREE.Vector3(3.6, 9, 1.6),
+      ]),
+      new THREE.LineBasicMaterial({ color: "#dddddd" }),
+    );
+    chute.add(lines);
+    group.add(chute);
+    group.userData = { chute, beacon, box, beam };
+    this.scene.add(group);
+    return group;
+  }
+
+  updateCrates(state, time) {
+    const alive = new Set();
+    (state.crates ?? []).forEach((crate) => {
+      alive.add(crate.id);
+      let mesh = this.crateMeshes.get(crate.id);
+      if (!mesh) {
+        mesh = this.createCrateMesh(crate);
+        this.crateMeshes.set(crate.id, mesh);
+      }
+      mesh.position.set(crate.x, crate.y, crate.z);
+      mesh.userData.chute.visible = crate.falling;
+      mesh.userData.beacon.visible = !crate.falling;
+      mesh.userData.beam.visible = !crate.falling;
+      mesh.rotation.y = crate.falling ? Math.sin(time * 1.3 + crate.id) * 0.3 : 0;
+      mesh.rotation.z = crate.falling ? Math.sin(time * 1.7 + crate.id) * 0.08 : 0;
+      if (!crate.falling) {
+        const pulse = 0.5 + 0.5 * Math.sin(time * 4 + crate.id);
+        mesh.userData.beacon.material.opacity = 0.3 + pulse * 0.45;
+        mesh.userData.beacon.scale.setScalar(1 + pulse * 0.15);
+        mesh.userData.beam.material.opacity = 0.14 + pulse * 0.12;
+      }
+    });
+    this.crateMeshes.forEach((mesh, id) => {
+      if (!alive.has(id)) {
+        this.scene.remove(mesh);
+        this.crateMeshes.delete(id);
+      }
+    });
+  }
+
   // Desenha todos os projeteis e devolve o que a camera deve seguir (centro do grupo).
   updateProjectiles(state) {
     const alive = new Set();
@@ -330,6 +411,7 @@ export class Stage {
     this.updateTanks(state, dt, time);
     this.updateGuide(state);
     const focus = this.updateProjectiles(state);
+    this.updateCrates(state, time);
 
     this.effects.update(dt, state);
     this.rig.update(state, dt, { projectileFocus: focus, shake: this.effects.shake, world: this.world });

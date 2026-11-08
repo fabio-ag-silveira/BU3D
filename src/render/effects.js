@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { WEAPONS } from "../config.js";
+import { CRATES, WEAPONS } from "../config.js";
 
 const MAX_PARTICLES = 1600;
 const MAX_DEBRIS = 260;
@@ -352,6 +352,24 @@ export class Effects {
         break;
       case "weapon":
         sound?.tick(false);
+        break;
+      case "crateDrop":
+        overlay?.showBanner("Caixa de suprimento!", { color: CRATES.types[event.type]?.color ?? "#fff", duration: 1.2, small: true });
+        sound?.turn();
+        break;
+      case "cratePickup":
+        this.burst({ x: event.x, y: event.y + 1.5, z: event.z }, {
+          count: 26, colors: [CRATES.types[event.type]?.color ?? "#ffffff", "#ffffff"], speed: 12, life: 0.8, size: 1.6, glow: true, gravity: -6,
+        });
+        overlay?.addFloatingText(event.text, { x: event.x, y: event.y + 6, z: event.z }, {
+          color: CRATES.types[event.type]?.color ?? "#ffffff", size: 20,
+        });
+        sound?.win();
+        break;
+      case "crateDestroyed":
+        this.burst({ x: event.x, y: event.y + 1.3, z: event.z }, {
+          count: 18, colors: ["#8a6a44", "#5c4630"], speed: 18, life: 1.2, size: 1.2, gravity: 30,
+        });
         break;
       case "pushed":
         this.burst({ x: event.x, y: event.y + 0.6, z: event.z }, {

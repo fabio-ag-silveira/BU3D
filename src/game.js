@@ -3,7 +3,9 @@ import {
   AI_PRESETS,
   AI_THINK_DELAY_MS,
   AIM_SPEED,
+  ARENA,
   CART_GRAVITY,
+  CRATES,
   CHARGE_SECONDS,
   DEFAULT_AI_DIFFICULTY,
   DEFAULT_GAME_MODE,
@@ -126,6 +128,7 @@ export class Game {
     this.inputs = { 1: createInputState(), 2: createInputState() };
     this.aiMissMemory = new Map();
     this.projectileSeq = 0;
+    this.crateSeq = 0;
     this.world = new VoxelWorld();
     this.resetGame();
   }
@@ -174,6 +177,7 @@ export class Game {
     this.craters = [];
     this.world.reset();
     this.projectiles = [];
+    this.crates = [];
     this.turnReport = null;
     this.gravity = GRAVITY * (modifier.gravityScale ?? 1);
     this.impact = null;
@@ -264,15 +268,18 @@ export class Game {
       case "aiming":
         this.updatePush(dt);
         this.updateFalling(dt);
+        this.updateCrates(dt);
         this.updateAiming(dt);
         break;
       case "flying":
         this.updatePush(dt);
         this.updateFalling(dt);
+        this.updateCrates(dt);
         this.updateProjectiles(dt);
         break;
       case "settling": {
         const pushing = this.updatePush(dt);
+        this.updateCrates(dt);
         if (!this.updateFalling(dt) && !pushing && this.phaseMs <= 0) {
           this.resolveTurn();
         }
@@ -308,6 +315,9 @@ export class Game {
 
     const player = this.currentPlayer;
     player.fuel = FUEL_PER_TURN;
+    if (this.turnsInRound >= CRATES.firstTurn && this.crates.length < CRATES.max && Math.random() < CRATES.dropChance) {
+      this.dropCrate();
+    }
     this.setPhase("aiming");
     this.status = `Vez de ${player.label}. Gire, mire, ajuste a força e atire!`;
     this.emit("turn", { playerId: player.id, label: player.label, wind: { ...this.wind } });
@@ -559,6 +569,7 @@ export class Game {
     this.world.sync(this.craters);
     this.impact = { x: point.x, y: point.y, z: point.z };
     report.explosions += 1;
+    this.destroyCrates(point, weapon.radius);
     this.emit("explosion", {
       ...this.impact, radius: weapon.radius, weapon: weapon.id, playerId: attacker.id, craterId: crater.id,
     });
@@ -605,6 +616,85 @@ export class Game {
       this.rememberAiMiss();
     }
     this.setPhase("settling", PHASE_DELAYS.settle);
+  }
+
+  dropCrate(type = null) {
+    const types = Object.values(CRATES.types);
+    let kind = type;
+    if (!kind) {
+      let roll = Math.random() * types.reduce((sum, entry) => sum + entry.weight, 0);
+      kind = types.find((entry) => (roll -= entry.weight) <= 0)?.id ?? "hp";
+    }
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const x = randomRange(ARENA.minX + 12, ARENA.maxX - 12);
+      const z = randomRange(ARENA.minZ + 12, ARENA.maxZ - 12);
+      const top = this.world.topAt(x, z);
+      const nearTank = this.players.some((player) => Math.hypot(player.position.x - x, player.position.z - z) < 22);
+      const nearCrate = this.crates.some((crate) => Math.hypot(crate.x - x, crate.z - z) < 20);
+      // Evita a borda de predios: as quatro quinas precisam ter a mesma altura.
+      const flat = [[-2, -2], [2, -2], [-2, 2], [2, 2]].every(([dx, dz]) => this.world.topAt(x + dx, z + dz) === top);
+      if (nearTank || nearCrate || !flat) {
+        continue;
+      }
+      this.crateSeq += 1;
+      const crate = { id: this.crateSeq, type: kind, x, y: 95, z, falling: true };
+      this.crates.push(crate);
+      this.emit("crateDrop", { crateId: crate.id, type: kind, x, y: top, z });
+      return crate;
+    }
+    return null;
+  }
+
+  updateCrates(dt) {
+    const seconds = dt / 1000;
+    this.crates = this.crates.filter((crate) => {
+      const below = { x: crate.x, y: crate.y - 0.05, z: crate.z };
+      if (this.world.isSolid(below)) {
+        crate.falling = false;
+      } else {
+        crate.falling = true;
+        crate.y = Math.max(0, crate.y - CRATES.fallSpeed * seconds * (crate.y > 60 ? 2.5 : 1));
+      }
+
+      const collector = this.players.find((player) => player.hp > 0 &&
+        Math.hypot(player.position.x - crate.x, player.position.z - crate.z) < CRATES.pickupRadius &&
+        crate.y - player.position.y > -2 && crate.y - player.position.y < 5);
+      if (collector) {
+        this.collectCrate(collector, crate);
+        return false;
+      }
+      return true;
+    });
+  }
+
+  collectCrate(player, crate) {
+    const kind = CRATES.types[crate.type];
+    let text = "";
+    if (crate.type === "hp") {
+      const before = player.hp;
+      player.hp = Math.min(MAX_HP, player.hp + kind.amount);
+      text = `+${player.hp - before} HP`;
+    } else if (crate.type === "fuel") {
+      player.fuel += kind.amount;
+      text = `+${kind.amount} combustível`;
+    } else {
+      const weapon = randomItem(WEAPON_ORDER.filter((id) => WEAPONS[id].ammo !== null));
+      player.ammo[weapon] = (player.ammo[weapon] ?? 0) + kind.amount;
+      text = `+1 ${WEAPONS[weapon].label}`;
+    }
+    this.status = `${player.label} pegou a caixa de ${kind.label.toLowerCase()} (${text}).`;
+    this.emit("cratePickup", { crateId: crate.id, playerId: player.id, type: crate.type, text, x: crate.x, y: crate.y, z: crate.z });
+  }
+
+  // Explosoes destroem caixas proximas.
+  destroyCrates(point, radius) {
+    this.crates = this.crates.filter((crate) => {
+      if (Math.hypot(crate.x - point.x, crate.y + 1 - point.y, crate.z - point.z) > radius * 0.7) {
+        return true;
+      }
+      this.emit("crateDestroyed", { crateId: crate.id, x: crate.x, y: crate.y, z: crate.z, type: crate.type });
+      return false;
+    });
   }
 
   // Explosoes empurram o carrinho para longe do centro (no plano), como um deslize curto.
@@ -750,6 +840,9 @@ export class Game {
   // A IA gira a torre, ajusta a elevacao e segura o disparo como um jogador faria.
   updateAi(dt) {
     const player = this.currentPlayer;
+    if (!this.aiPlan && this.aiDriveToCrate(player, dt)) {
+      return;
+    }
     if (!this.aiPlan) {
       this.aiThinkMs -= dt;
       if (this.aiThinkMs <= 0) {
@@ -788,6 +881,37 @@ export class Game {
     }
   }
 
+  // IA busca caixas no mesmo nivel e ao alcance do combustivel antes de mirar.
+  aiDriveToCrate(player, dt) {
+    if (this.aiCrateGiveUp === this.turnsInRound) {
+      return false;
+    }
+    const crate = this.crates
+      .filter((entry) => !entry.falling && Math.abs(entry.y - player.position.y) < 1.5)
+      .map((entry) => ({ entry, distance: Math.hypot(entry.x - player.position.x, entry.z - player.position.z) }))
+      .filter(({ distance }) => distance < player.fuel + CRATES.pickupRadius)
+      .sort((a, b) => a.distance - b.distance)[0]?.entry;
+    if (!crate || player.fuel <= 0) {
+      return false;
+    }
+    const target = wrapDegrees(Math.atan2(crate.x - player.position.x, crate.z - player.position.z) * 180 / Math.PI);
+    const difference = wrapDegrees(target - player.yaw);
+    if (Math.abs(difference) > 0.5) {
+      const step = (YAW_SPEED * dt) / 1000;
+      this.rotateCart(player, clamp(difference, -step, step));
+      return true;
+    }
+    const before = { ...player.position };
+    this.moveCart(player, 1, dt / 1000);
+    if (before.x === player.position.x && before.z === player.position.z) {
+      this.aiCrateGiveUp = this.turnsInRound;
+      return false;
+    }
+    this.aiThinkMs = AI_THINK_DELAY_MS;
+    this.status = `${player.label} vai buscar a caixa.`;
+    return true;
+  }
+
   rememberAiMiss() {
     if (!this.isAiTurn || !this.aiPlan) {
       return;
@@ -816,6 +940,7 @@ export class Game {
       wind: { ...this.wind },
       turnTimeMs: this.turnTimeMs,
       craters: this.craters.map((crater) => ({ ...crater })),
+      crates: this.crates.map((crate) => ({ ...crate })),
       impact: this.impact ? { ...this.impact } : null,
       projectiles: this.projectiles.map((projectile) => ({
         id: projectile.id,

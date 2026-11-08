@@ -100,6 +100,20 @@ export const ROUND_MODIFIERS = {
   arsenal: { id: "arsenal", label: "Arsenal", weight: 1.5, ammoScale: 2, description: "Munição especial em dobro" },
 };
 
+// Caixas de suprimento que caem de paraquedas a partir do 3o turno da rodada.
+export const CRATES = {
+  dropChance: 0.4,
+  firstTurn: 3,
+  max: 2,
+  fallSpeed: 11,
+  pickupRadius: 6.5,
+  types: {
+    hp: { id: "hp", label: "Vida", amount: 30, color: "#4ade80", weight: 1.2 },
+    fuel: { id: "fuel", label: "Combustível", amount: 25, color: "#ffd166", weight: 1 },
+    ammo: { id: "ammo", label: "Munição", amount: 1, color: "#ffb347", weight: 1 },
+  },
+};
+
 export const MAX_HP = 100;
 export const ROUNDS_TO_WIN = 3;
 export const EXPLOSION_RADIUS = 13;

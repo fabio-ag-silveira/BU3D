@@ -1,4 +1,4 @@
-import { ARENA, FUEL_PER_TURN, GRID, MAX_HP, ROUND_MODIFIERS, ROUNDS_TO_WIN, VOXEL_SIZE, WEAPONS, WIND_MAX } from "./config.js";
+import { ARENA, CRATES, FUEL_PER_TURN, GRID, MAX_HP, ROUND_MODIFIERS, ROUNDS_TO_WIN, VOXEL_SIZE, WEAPONS, WIND_MAX } from "./config.js";
 import { degToRad, radToDeg } from "./math.js";
 
 const MAP_WIDTH = ARENA.maxX - ARENA.minX;
@@ -94,7 +94,7 @@ export class StageOverlay {
         el.hpValue.textContent = `${value}`;
         el.card.classList.toggle("is-low", value < 35);
       });
-      const fuel = Math.round((player.fuel / FUEL_PER_TURN) * 100);
+      const fuel = Math.min(100, Math.round((player.fuel / FUEL_PER_TURN) * 100));
       this.write(`fuel${index}`, fuel, (value) => {
         el.fuel.style.width = `${value}%`;
       });
@@ -300,6 +300,15 @@ export class StageOverlay {
       context.fill();
       context.stroke();
       context.restore();
+    });
+
+    (state.crates ?? []).forEach((crate) => {
+      const point = toMap(crate);
+      context.fillStyle = CRATES.types[crate.type]?.color ?? "#ffffff";
+      context.strokeStyle = "#000000";
+      context.lineWidth = ratio;
+      context.fillRect(point.x - 3.5 * ratio, point.y - 3.5 * ratio, 7 * ratio, 7 * ratio);
+      context.strokeRect(point.x - 3.5 * ratio, point.y - 3.5 * ratio, 7 * ratio, 7 * ratio);
     });
 
     state.projectiles.forEach((projectile) => {

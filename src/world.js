@@ -91,6 +91,18 @@ export class VoxelWorld {
     return point.y <= 0 || this.isBuildingSolid(point);
   }
 
+  // Altura do topo solido na coluna (x, z); 0 = chao.
+  topAt(x, z) {
+    const ix = Math.floor((x - originX) / VOXEL_SIZE);
+    const iz = Math.floor((z - originZ) / VOXEL_SIZE);
+    for (let iy = sizeY - 1; iy >= 0; iy -= 1) {
+      if (this.buildingAtCell(ix, iy, iz)) {
+        return (iy + 1) * VOXEL_SIZE;
+      }
+    }
+    return 0;
+  }
+
   // Qual eixo foi cruzado ao entrar no solido (para o ricochete): "x", "y" ou "z".
   hitAxis(previous, current) {
     if (current.y <= 0 && previous.y > 0) {
