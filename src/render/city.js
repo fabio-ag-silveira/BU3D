@@ -1,11 +1,15 @@
 import * as THREE from "three";
-import { ARENA, BUILDING_HALF, CITY_LAYOUT, GRID, VOXEL_SIZE } from "../config.js";
-import { BUILDINGS, cellCenter } from "../world.js";
+import { ARENA, GRID, VOXEL_SIZE } from "../config.js";
+import { cellCenter } from "../world.js";
+import { MATERIALS } from "../map.js";
 
-const WINDOW_SLOTS = new Set([1, 2, 5, 6]);
-const DOOR_SLOTS = new Set([3, 4]);
-const STREET_LINES_X = [-90, -45, -15, 15];
-const STREET_LINES_Z = [0, 30, 60, 90, 120, 152];
+const MATERIAL_COLORS = {
+  [MATERIALS.earth]: "#7a5a3c",
+  [MATERIALS.rock]: "#6f6a62",
+  [MATERIALS.grass]: "#5d8f3b",
+  [MATERIALS.concrete]: "#a3a3a0",
+  [MATERIALS.bridge]: "#8c8f96",
+};
 
 function hash(index, seed) {
   let value = (index + 1) * 2654435761 ^ seed;
@@ -14,10 +18,8 @@ function hash(index, seed) {
   return ((value ^ (value >>> 16)) >>> 0) / 4294967296;
 }
 
-const TOTAL_VOXELS = BUILDINGS.reduce(
-  (sum, building) => sum + building.layers * (building.maxIx - building.minIx + 1) * (building.maxIz - building.minIz + 1),
-  0,
-);
+const WALL_CAPACITY = 70000;
+const LIT_CAPACITY = 14000;
 
 // Predios renderizados como voxels instanciados. So as celulas com face exposta viram instancias.
 export class CityMesh {
@@ -26,14 +28,14 @@ export class CityMesh {
     this.walls = new THREE.InstancedMesh(
       geometry,
       new THREE.MeshStandardMaterial({ roughness: 0.88, metalness: 0.05 }),
-      TOTAL_VOXELS,
+      WALL_CAPACITY,
     );
     this.walls.castShadow = true;
     this.walls.receiveShadow = true;
     this.lit = new THREE.InstancedMesh(
       new THREE.BoxGeometry(VOXEL_SIZE * 1.002, VOXEL_SIZE * 0.82, VOXEL_SIZE * 1.002),
       new THREE.MeshBasicMaterial({ toneMapped: false }),
-      Math.ceil(TOTAL_VOXELS / 3),
+      LIT_CAPACITY,
     );
     [this.walls, this.lit].forEach((mesh) => {
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -67,33 +69,47 @@ export class CityMesh {
     let wallCount = 0;
     let litCount = 0;
 
-    BUILDINGS.forEach((building) => {
-      const base = baseColors[building.type];
-      for (let iy = 0; iy < building.layers; iy += 1) {
-        for (let iz = building.minIz; iz <= building.maxIz; iz += 1) {
-          for (let ix = building.minIx; ix <= building.maxIx; ix += 1) {
-            if (!world.buildingAtCell(ix, iy, iz)) {
-              continue;
-            }
-            const exposed =
-              !world.buildingAtCell(ix + 1, iy, iz) || !world.buildingAtCell(ix - 1, iy, iz) ||
-              !world.buildingAtCell(ix, iy + 1, iz) || (iy > 0 && !world.buildingAtCell(ix, iy - 1, iz)) ||
-              !world.buildingAtCell(ix, iy, iz + 1) || !world.buildingAtCell(ix, iy, iz - 1);
-            if (!exposed) {
-              continue;
-            }
+    const materials = Object.fromEntries(Object.entries(MATERIAL_COLORS).map(([id, value]) => [
+      id,
+      new THREE.Color(value).multiplyScalar(theme.id === "night" ? 0.55 : theme.id === "dusk" ? 0.85 : 1),
+    ]));
+    const buildings = world.layout.buildings;
+    const cells = world.cells;
+    const { sizeX, sizeY, sizeZ } = GRID;
+    const solid = (ix, iy, iz) => world.buildingAtCell(ix, iy, iz) !== 0;
 
-            const center = cellCenter(ix, iy, iz);
-            const cellId = ix + iz * GRID.sizeX + iy * GRID.sizeX * GRID.sizeZ;
+    for (let iy = 0; iy < sizeY; iy += 1) {
+      for (let iz = 0; iz < sizeZ; iz += 1) {
+        for (let ix = 0; ix < sizeX; ix += 1) {
+          const material = cells[(iy * sizeZ + iz) * sizeX + ix];
+          if (!material) {
+            continue;
+          }
+          const exposed =
+            !solid(ix + 1, iy, iz) || !solid(ix - 1, iy, iz) ||
+            !solid(ix, iy + 1, iz) || (iy > 0 && !solid(ix, iy - 1, iz)) ||
+            !solid(ix, iy, iz + 1) || !solid(ix, iy, iz - 1);
+          if (!exposed || wallCount >= WALL_CAPACITY) {
+            continue;
+          }
+
+          const center = cellCenter(ix, iy, iz);
+          const cellId = ix + iz * sizeX + iy * sizeX * sizeZ;
+          const noise = hash(cellId, seed);
+
+          if (material > 200) {
+            color.copy(materials[material] ?? materials[MATERIALS.rock]).multiplyScalar(0.88 + noise * 0.2);
+          } else {
+            const building = buildings[material - 1];
             const onX = ix === building.minIx || ix === building.maxIx;
             const onZ = iz === building.minIz || iz === building.maxIz;
             const slot = onX && !onZ ? iz - building.minIz : onZ && !onX ? ix - building.minIx : -1;
+            const span = onX ? building.maxIz - building.minIz : building.maxIx - building.minIx;
             const isRoof = iy === building.layers - 1;
-            const isWindow = slot >= 0 && !isRoof && iy > 0 && iy % 2 === 1 && WINDOW_SLOTS.has(slot);
-            const isDoor = slot >= 0 && iy === 0 && DOOR_SLOTS.has(slot);
-            const noise = hash(cellId, seed);
+            const isWindow = slot > 0 && slot < span && !isRoof && iy > 0 && iy % 2 === 1 && slot % 3 !== 0;
+            const isDoor = slot >= 0 && iy === 0 && Math.abs(slot - span / 2) < 1;
 
-            if (isWindow && noise < theme.litChance) {
+            if (isWindow && noise < theme.litChance && litCount < LIT_CAPACITY) {
               color.copy(windowLit).multiplyScalar(0.85 + 0.15 * hash(cellId, seed + 17));
               matrix.makeTranslation(center.x, center.y, center.z);
               lit.setMatrixAt(litCount, matrix);
@@ -109,24 +125,24 @@ export class CityMesh {
             } else if (isRoof) {
               color.copy(roof).multiplyScalar(0.92 + noise * 0.12);
             } else {
-              color.copy(base).multiplyScalar(0.9 + noise * 0.16);
+              color.copy(baseColors[building.type]).multiplyScalar(0.9 + noise * 0.16);
             }
-
-            for (const crater of craters) {
-              const distance = Math.hypot(center.x - crater.x, center.y - crater.y, center.z - crater.z);
-              if (distance < crater.r + 2.8) {
-                color.lerp(this.scorch, 0.75 * (1 - Math.max(0, distance - crater.r) / 2.8));
-              }
-            }
-
-            matrix.makeTranslation(center.x, center.y, center.z);
-            walls.setMatrixAt(wallCount, matrix);
-            walls.setColorAt(wallCount, color);
-            wallCount += 1;
           }
+
+          for (const crater of craters) {
+            const distance = Math.hypot(center.x - crater.x, center.y - crater.y, center.z - crater.z);
+            if (distance < crater.r + 2.8) {
+              color.lerp(this.scorch, 0.75 * (1 - Math.max(0, distance - crater.r) / 2.8));
+            }
+          }
+
+          matrix.makeTranslation(center.x, center.y, center.z);
+          walls.setMatrixAt(wallCount, matrix);
+          walls.setColorAt(wallCount, color);
+          wallCount += 1;
         }
       }
-    });
+    }
 
     walls.count = wallCount;
     lit.count = litCount;
@@ -162,39 +178,11 @@ export class Ground {
     this.group.add(street);
 
     this.sidewalkMaterial = new THREE.MeshStandardMaterial({ roughness: 0.9 });
-    const sidewalkGeometry = new THREE.BoxGeometry(BUILDING_HALF * 2 + 4, 0.3, BUILDING_HALF * 2 + 4);
-    const sidewalks = new THREE.InstancedMesh(sidewalkGeometry, this.sidewalkMaterial, CITY_LAYOUT.length);
-    const matrix = new THREE.Matrix4();
-    CITY_LAYOUT.forEach((building, index) => {
-      matrix.makeTranslation(building.x, 0.15, building.z);
-      sidewalks.setMatrixAt(index, matrix);
-    });
-    sidewalks.receiveShadow = true;
-    this.group.add(sidewalks);
-
     this.laneMaterial = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.7 });
-    const dashes = [];
-    STREET_LINES_X.forEach((x) => {
-      for (let z = ARENA.minZ + 4; z < ARENA.maxZ - 4; z += 8) {
-        dashes.push({ x, z, rotate: false });
-      }
-    });
-    STREET_LINES_Z.forEach((z) => {
-      for (let x = ARENA.minX + 4; x < ARENA.maxX - 4; x += 8) {
-        dashes.push({ x, z, rotate: true });
-      }
-    });
-    const dashGeometry = new THREE.PlaneGeometry(0.5, 3.6).rotateX(-Math.PI / 2);
-    const lanes = new THREE.InstancedMesh(dashGeometry, this.laneMaterial, dashes.length);
-    const rotation = new THREE.Matrix4().makeRotationY(Math.PI / 2);
-    dashes.forEach((dash, index) => {
-      matrix.makeTranslation(dash.x, 0.04, dash.z);
-      if (dash.rotate) {
-        matrix.multiply(rotation);
-      }
-      lanes.setMatrixAt(index, matrix);
-    });
-    this.group.add(lanes);
+    this.parkMaterial = new THREE.MeshStandardMaterial({ roughness: 1 });
+    this.layoutGroup = new THREE.Group();
+    this.group.add(this.layoutGroup);
+    this.layoutKey = null;
 
     this.wallMaterial = new THREE.MeshStandardMaterial({ roughness: 0.8 });
     const wallHeight = 1.6;
@@ -213,7 +201,65 @@ export class Ground {
     });
   }
 
+  // Calcadas, pracas e faixas dependem do mapa da rodada.
+  setLayout(layout) {
+    const key = `${layout.kind}:${layout.seed}`;
+    if (key === this.layoutKey) {
+      return;
+    }
+    this.layoutKey = key;
+    this.layoutGroup.children.forEach((child) => child.geometry.dispose());
+    this.layoutGroup.clear();
+    const matrix = new THREE.Matrix4();
+
+    const sidewalks = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 0.3, 1), this.sidewalkMaterial, Math.max(1, layout.buildings.length));
+    layout.buildings.forEach((building, index) => {
+      const width = (building.maxIx - building.minIx + 1) * VOXEL_SIZE + 4;
+      const depth = (building.maxIz - building.minIz + 1) * VOXEL_SIZE + 4;
+      const x = GRID.originX + ((building.minIx + building.maxIx + 1) / 2) * VOXEL_SIZE;
+      const z = GRID.originZ + ((building.minIz + building.maxIz + 1) / 2) * VOXEL_SIZE;
+      matrix.compose(new THREE.Vector3(x, 0.15, z), new THREE.Quaternion(), new THREE.Vector3(width, 1, depth));
+      sidewalks.setMatrixAt(index, matrix);
+    });
+    sidewalks.count = layout.buildings.length;
+    sidewalks.receiveShadow = true;
+    this.layoutGroup.add(sidewalks);
+
+    if (layout.parks.length) {
+      const parks = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 28).rotateX(-Math.PI / 2), this.parkMaterial, layout.parks.length);
+      layout.parks.forEach((park, index) => {
+        matrix.compose(new THREE.Vector3(park.x, 0.06, park.z), new THREE.Quaternion(), new THREE.Vector3(park.radius, 1, park.radius));
+        parks.setMatrixAt(index, matrix);
+      });
+      parks.receiveShadow = true;
+      this.layoutGroup.add(parks);
+    }
+
+    const dashes = [];
+    layout.lanesX.forEach((x) => {
+      for (let z = ARENA.minZ + 4; z < ARENA.maxZ - 4; z += 8) {
+        dashes.push({ x, z, rotate: false });
+      }
+    });
+    layout.lanesZ.forEach((z) => {
+      for (let x = ARENA.minX + 4; x < ARENA.maxX - 4; x += 8) {
+        dashes.push({ x, z, rotate: true });
+      }
+    });
+    const lanes = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.5, 3.6).rotateX(-Math.PI / 2), this.laneMaterial, dashes.length);
+    const rotation = new THREE.Matrix4().makeRotationY(Math.PI / 2);
+    dashes.forEach((dash, index) => {
+      matrix.makeTranslation(dash.x, 0.04, dash.z);
+      if (dash.rotate) {
+        matrix.multiply(rotation);
+      }
+      lanes.setMatrixAt(index, matrix);
+    });
+    this.layoutGroup.add(lanes);
+  }
+
   applyTheme(theme) {
+    this.parkMaterial.color.set("#4d7a33").multiplyScalar(theme.id === "night" ? 0.5 : theme.id === "dusk" ? 0.8 : 1);
     this.streetMaterial.color.set(theme.street);
     this.sidewalkMaterial.color.set(theme.sidewalk);
     this.laneMaterial.color.set(theme.lane);

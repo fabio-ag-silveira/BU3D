@@ -52,7 +52,7 @@ export class Hud {
     apply(value);
   }
 
-  render(state, { mode, aiDifficulty, soundEnabled, minimapEnabled, cameraMode }) {
+  render(state, { mode, aiDifficulty, soundEnabled, minimapEnabled, cameraMode, mapKind }) {
     const { ui } = this;
     const current = state.players[state.turnIndex];
     const winner = state.players.find((player) => player.id === state.matchWinner);
@@ -90,6 +90,9 @@ export class Hud {
     this.write("camera", (value) => {
       ui.cameraButtons.forEach((button) => setPressed(button, button.dataset.camera === value));
     }, cameraMode);
+    this.write("map", (value) => {
+      ui.mapButtons.forEach((button) => setPressed(button, button.dataset.map === value));
+    }, mapKind);
     this.write("sound", (value) => setPressed(ui.soundButton, value), soundEnabled);
     this.write("minimap", (value) => setPressed(ui.minimapButton, value), minimapEnabled);
   }

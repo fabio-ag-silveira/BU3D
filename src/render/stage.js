@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { CRATES, ROUND_MODIFIERS, SKY_THEMES, WEAPONS } from "../config.js";
 import { getMuzzle, getLaunchVelocity, powerToVelocity, projectileAt } from "../physics.js";
-import { VoxelWorld, BUILDINGS } from "../world.js";
+import { VoxelWorld } from "../world.js";
+import { getLayout, MATERIALS } from "../map.js";
 import { Sky, ARENA_CENTER } from "./sky.js";
 import { CityMesh, Ground } from "./city.js";
 import { TankModel } from "./tank.js";
@@ -224,13 +225,33 @@ export class Stage {
       this.sky.cloudMaterial.color.set("#5d6470");
       this.sky.cloudMaterial.opacity = 0.95;
     }
-    this.buildingColors = Object.fromEntries(BUILDINGS.map((building) => [
+    this.theme = theme;
+    this.updateDebrisColors();
+  }
+
+  updateDebrisColors() {
+    const theme = this.theme;
+    if (!theme) {
+      return;
+    }
+    this.buildingColors = Object.fromEntries(this.world.layout.buildings.map((building) => [
       building.id,
       new THREE.Color(theme.buildings[building.type]),
     ]));
+    this.buildingColors[MATERIALS.earth] = new THREE.Color("#7a5a3c");
+    this.buildingColors[MATERIALS.grass] = new THREE.Color("#5d8f3b");
+    this.buildingColors[MATERIALS.rock] = new THREE.Color("#6f6a62");
+    this.buildingColors[MATERIALS.concrete] = new THREE.Color("#a3a3a0");
+    this.buildingColors[MATERIALS.bridge] = new THREE.Color("#8c8f96");
   }
 
   syncWorld(state) {
+    const layout = getLayout(state.mapKind ?? "classic", state.seed);
+    this.ground.setLayout(layout);
+    if (layout !== this.world.layout) {
+      this.world.setLayout(layout);
+      this.updateDebrisColors();
+    }
     const theme = SKY_THEMES[state.theme] ?? SKY_THEMES.day;
     const themeKey = `${state.theme}:${state.seed}:${state.modifier}`;
     const themeChanged = themeKey !== this.themeKey;

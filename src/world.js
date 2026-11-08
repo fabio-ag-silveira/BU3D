@@ -1,24 +1,8 @@
-import { BUILDING_HALF, BUILDING_TYPES, CITY_LAYOUT, GRID, VOXEL_SIZE } from "./config.js";
+import { GRID, VOXEL_SIZE } from "./config.js";
+import { getLayout } from "./map.js";
 
 const { originX, originZ, sizeX, sizeY, sizeZ } = GRID;
 const CELL_COUNT = sizeX * sizeY * sizeZ;
-
-// Predios do legado convertidos para faixas de celulas da grade.
-export const BUILDINGS = CITY_LAYOUT.map((entry, index) => {
-  const height = BUILDING_TYPES[entry.type].height;
-  return {
-    id: index + 1,
-    type: entry.type,
-    x: entry.x,
-    z: entry.z,
-    height,
-    minIx: Math.round((entry.x - BUILDING_HALF - originX) / VOXEL_SIZE),
-    maxIx: Math.round((entry.x + BUILDING_HALF - originX) / VOXEL_SIZE) - 1,
-    minIz: Math.round((entry.z - BUILDING_HALF - originZ) / VOXEL_SIZE),
-    maxIz: Math.round((entry.z + BUILDING_HALF - originZ) / VOXEL_SIZE) - 1,
-    layers: Math.round(height / VOXEL_SIZE),
-  };
-});
 
 export function cellIndex(ix, iy, iz) {
   return (iy * sizeZ + iz) * sizeX + ix;
@@ -40,34 +24,25 @@ export function cellCenter(ix, iy, iz) {
   };
 }
 
-function buildBaseCells() {
-  const cells = new Uint8Array(CELL_COUNT);
-  BUILDINGS.forEach((building) => {
-    for (let iy = 0; iy < building.layers; iy += 1) {
-      for (let iz = building.minIz; iz <= building.maxIz; iz += 1) {
-        for (let ix = building.minIx; ix <= building.maxIx; ix += 1) {
-          cells[cellIndex(ix, iy, iz)] = building.id;
-        }
-      }
-    }
-  });
-  return cells;
-}
-
-const BASE_CELLS = buildBaseCells();
-
 // Cidade feita de voxels: cada cratera apaga as celulas dentro da esfera.
 // O estado e derivado so da lista de crateras: a logica do jogo e a renderizacao chegam ao mesmo resultado.
 export class VoxelWorld {
-  constructor() {
+  constructor(layout = getLayout("classic", 0)) {
     this.cells = new Uint8Array(CELL_COUNT);
     this.applied = [];
     this.version = 0;
+    this.layout = layout;
+    this.reset();
+  }
+
+  // Troca o mapa (cidade base) e limpa as crateras.
+  setLayout(layout) {
+    this.layout = layout;
     this.reset();
   }
 
   reset() {
-    this.cells.set(BASE_CELLS);
+    this.cells.set(this.layout.cells);
     this.applied = [];
     this.version += 1;
   }

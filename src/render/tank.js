@@ -109,7 +109,13 @@ export class TankModel {
   }
 
   update(player, { isTurn, recoil, time, dt }) {
-    this.group.position.set(player.position.x, player.position.y, player.position.z);
+    // Suaviza degraus (subir morro) sem atrasar quedas longas.
+    if (this.displayY === undefined || Math.abs(player.position.y - this.displayY) > 3) {
+      this.displayY = player.position.y;
+    } else {
+      this.displayY += (player.position.y - this.displayY) * Math.min(1, dt * 14);
+    }
+    this.group.position.set(player.position.x, this.displayY, player.position.z);
 
     // Suaviza o giro para o LAN (snapshots chegam a cada 150 ms).
     let delta = player.yaw - this.displayYaw;

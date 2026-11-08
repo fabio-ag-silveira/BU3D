@@ -21,6 +21,7 @@ const ui = {
   modeButtons: Array.from(document.querySelectorAll("[data-mode]")),
   difficultyButtons: Array.from(document.querySelectorAll("[data-difficulty]")),
   cameraButtons: Array.from(document.querySelectorAll("[data-camera]")),
+  mapButtons: Array.from(document.querySelectorAll("[data-map]")),
   soundButton: document.getElementById("soundButton"),
   minimapButton: document.getElementById("minimapButton"),
   resetButton: document.getElementById("resetButton"),
@@ -114,6 +115,13 @@ ui.modeButtons.forEach((button) => {
 ui.difficultyButtons.forEach((button) => {
   button.addEventListener("click", () => {
     game.setAiDifficulty(button.dataset.difficulty);
+    button.blur();
+  });
+});
+
+ui.mapButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    game.setMapKind(button.dataset.map);
     button.blur();
   });
 });
@@ -242,6 +250,7 @@ function frame(timestamp) {
     soundEnabled: sound.enabled,
     minimapEnabled,
     cameraMode: stage.rig.mode,
+    mapKind: game.mapKind,
   });
 
   window.requestAnimationFrame(frame);

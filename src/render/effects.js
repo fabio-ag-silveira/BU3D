@@ -439,8 +439,9 @@ export class Effects {
       case "roundStart":
         this.reset();
         overlay?.showBanner(`Rodada ${event.round}`, {
-          duration: event.label ? 2.4 : 1.6,
-          subtitle: event.label ? `${event.label}: ${event.description}` : "",
+          duration: event.label ? 2.4 : 1.8,
+          subtitle: [event.label ? `${event.label}: ${event.description}` : "", event.density ? `Cidade ${event.density}` : ""]
+            .filter(Boolean).join(" · "),
         });
         break;
       case "roundEnd":

@@ -27,6 +27,7 @@ import {
   SKY_THEMES,
   TIME_SCALE,
   TURN_TIME_MS,
+  VOXEL_SIZE,
   WEAPON_ORDER,
   WEAPONS,
   WIND_MAX,
@@ -50,6 +51,7 @@ import {
   velocityAt,
 } from "./physics.js";
 import { VoxelWorld } from "./world.js";
+import { getLayout, MAP_KINDS } from "./map.js";
 import { planAiShot } from "./ai.js";
 
 export const CONTROLS = ["up", "down", "left", "right", "forward", "back", "fire", "weapon"];
@@ -59,10 +61,33 @@ function createInputState() {
   return Object.fromEntries(CONTROLS.map((control) => [control, false]));
 }
 
-function pickSpawns() {
-  const first = randomItem(PLAYER_DEFAULTS[0].spawns);
-  const options = PLAYER_DEFAULTS[1].spawns.filter((spawn) => distance2d(spawn, first) >= MIN_SPAWN_DISTANCE);
-  return [first, randomItem(options.length ? options : PLAYER_DEFAULTS[1].spawns)];
+const SPAWN_WEIGHTS = { island: 0.35, roof: 0.4, street: 0.25 };
+
+function weightedSpawn(candidates) {
+  const kinds = [...new Set(candidates.map((spawn) => spawn.kind))];
+  let roll = Math.random() * kinds.reduce((sum, kind) => sum + (SPAWN_WEIGHTS[kind] ?? 0.2), 0);
+  const kind = kinds.find((entry) => (roll -= SPAWN_WEIGHTS[entry] ?? 0.2) <= 0) ?? kinds[0];
+  return randomItem(candidates.filter((spawn) => spawn.kind === kind));
+}
+
+// Classico: listas fixas do legado. Dinamico: telhados, ilhas e ruas validos no mapa sorteado.
+function pickSpawns(layout, world) {
+  if (layout.playerSpawns) {
+    const first = randomItem(layout.playerSpawns[0]);
+    const options = layout.playerSpawns[1].filter((spawn) => distance2d(spawn, first) >= MIN_SPAWN_DISTANCE);
+    return [first, randomItem(options.length ? options : layout.playerSpawns[1])];
+  }
+  const valid = layout.spawns.filter((spawn) =>
+    [0, 90].some((yaw) => isTankSpaceFree(world, spawn, yaw)) && isTankSupported(world, spawn, 0));
+  const first = weightedSpawn(valid);
+  for (const minimum of [70, 55, 40, 0]) {
+    const options = valid.filter((spawn) => spawn !== first && distance2d(spawn, first) >= minimum);
+    if (options.length) {
+      const varied = options.filter((spawn) => spawn.kind !== first.kind);
+      return [first, weightedSpawn(varied.length && Math.random() < 0.6 ? varied : options)];
+    }
+  }
+  return [first, first];
 }
 
 function pickModifier(round) {
@@ -80,8 +105,8 @@ function pickModifier(round) {
   return "normal";
 }
 
-function createPlayers(ammoScale = 1) {
-  const spawns = pickSpawns();
+function createPlayers(layout, world, ammoScale = 1) {
+  const spawns = pickSpawns(layout, world);
   return PLAYER_DEFAULTS.map((template, index) => {
     const position = { ...spawns[index] };
     const other = spawns[1 - index];
@@ -90,7 +115,7 @@ function createPlayers(ammoScale = 1) {
       label: template.label,
       color: template.color,
       shade: template.shade,
-      position,
+      position: { x: position.x, y: position.y, z: position.z },
       yaw: Math.round(bearingTo(position, other)),
       elevation: 35,
       hp: MAX_HP,
@@ -123,6 +148,7 @@ export class Game {
     this.instanceId = Math.random().toString(36).slice(2, 10);
     this.mode = DEFAULT_GAME_MODE;
     this.aiDifficulty = DEFAULT_AI_DIFFICULTY;
+    this.mapKind = MAP_KINDS.dynamic.id;
     this.events = [];
     this.eventSeq = 0;
     this.inputs = { 1: createInputState(), 2: createInputState() };
@@ -175,7 +201,9 @@ export class Game {
     const modifier = ROUND_MODIFIERS[this.modifier];
     this.seed = Math.floor(Math.random() * 2 ** 31);
     this.craters = [];
-    this.world.reset();
+    this.roundMapKind = this.mapKind;
+    this.layout = getLayout(this.roundMapKind, this.seed);
+    this.world.setLayout(this.layout);
     this.projectiles = [];
     this.crates = [];
     this.turnReport = null;
@@ -184,7 +212,7 @@ export class Game {
     this.charge = { active: false, power: 0, direction: 1 };
     this.wind = { x: 0, z: 0 };
     this.turnTimeMs = TURN_TIME_MS;
-    this.players = createPlayers(modifier.ammoScale ?? 1);
+    this.players = createPlayers(this.layout, this.world, modifier.ammoScale ?? 1);
     this.aiPlan = null;
     this.aiThinkMs = 0;
     this.aiMissMemory.clear();
@@ -194,8 +222,11 @@ export class Game {
       round: this.round + 1,
       theme: this.theme,
       modifier: this.modifier,
+      mapKind: this.roundMapKind,
+      density: this.layout.density,
       label: modifier.id === "normal" ? "" : modifier.label,
       description: modifier.description,
+      density: this.layout.density,
     });
   }
 
@@ -208,6 +239,14 @@ export class Game {
     this.aiPlan = null;
     this.aiThinkMs = AI_THINK_DELAY_MS;
     this.status = this.mode === GAME_MODES.ai ? "Modo versus IA ativado." : "Modo versus local ativado.";
+  }
+
+  setMapKind(kind) {
+    if (!MAP_KINDS[kind] || this.mapKind === kind) {
+      return;
+    }
+    this.mapKind = kind;
+    this.status = `Mapa ${MAP_KINDS[kind].label.toLowerCase()} a partir da próxima rodada.`;
   }
 
   setAiDifficulty(difficulty) {
@@ -392,7 +431,12 @@ export class Game {
     };
     const other = this.players.find((entry) => entry !== player);
     if (isTankBlocked(this.world, next, player.yaw, direction, other)) {
-      return;
+      // Sobe degraus de um voxel (morros, escombros).
+      const step = { ...next, y: next.y + VOXEL_SIZE };
+      if (isTankBlocked(this.world, step, player.yaw, direction, other) || !isTankSupported(this.world, step, player.yaw)) {
+        return;
+      }
+      next.y = step.y;
     }
     player.fuel = Math.max(0, player.fuel - distance);
     player.position = next;
@@ -936,6 +980,8 @@ export class Game {
       status: this.status,
       theme: this.theme,
       modifier: this.modifier,
+      mapKind: this.roundMapKind,
+      density: this.layout.density,
       seed: this.seed,
       wind: { ...this.wind },
       turnTimeMs: this.turnTimeMs,
