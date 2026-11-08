@@ -166,12 +166,6 @@ export class Ground {
     const centerX = (ARENA.minX + ARENA.maxX) / 2;
     const centerZ = (ARENA.minZ + ARENA.maxZ) / 2;
 
-    this.outerMaterial = new THREE.MeshStandardMaterial({ roughness: 1 });
-    const outer = new THREE.Mesh(new THREE.PlaneGeometry(1600, 1600).rotateX(-Math.PI / 2), this.outerMaterial);
-    outer.position.set(centerX, -0.6, centerZ);
-    outer.receiveShadow = true;
-    this.group.add(outer);
-
     this.streetMaterial = new THREE.MeshStandardMaterial({ roughness: 0.95 });
     const street = new THREE.Mesh(new THREE.PlaneGeometry(width, depth).rotateX(-Math.PI / 2), this.streetMaterial);
     street.position.set(centerX, 0, centerZ);
@@ -265,6 +259,5 @@ export class Ground {
     this.sidewalkMaterial.color.set(theme.sidewalk);
     this.laneMaterial.color.set(theme.lane);
     this.wallMaterial.color.set(theme.sidewalk);
-    this.outerMaterial.color.set(theme.street).multiplyScalar(0.7);
   }
 }

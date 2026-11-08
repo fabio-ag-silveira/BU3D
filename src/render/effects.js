@@ -1,5 +1,7 @@
 import * as THREE from "three";
-import { CRATES, WEAPONS } from "../config.js";
+import { CRATES, TIME_SCALE, WEAPONS } from "../config.js";
+import { projectileAt } from "../physics.js";
+import { isWater, WATER_LEVEL } from "./surroundings.js";
 
 const MAX_PARTICLES = 1600;
 const MAX_DEBRIS = 260;
@@ -165,6 +167,7 @@ export class Effects {
     this.recoil = new Map();
     this.smokeClock = new Map();
     this.windDrift = new THREE.Vector3();
+    this.ghosts = [];
   }
 
   createScorchTexture() {
@@ -200,6 +203,7 @@ export class Effects {
     this.rings.forEach((entry) => this.scene.remove(entry.mesh));
     this.rings.length = 0;
     this.clearScorch();
+    this.ghosts = [];
     this.lights.forEach((entry) => {
       entry.life = 0;
       entry.light.intensity = 0;
@@ -327,6 +331,7 @@ export class Effects {
   }
 
   handleEvent(event, state, { sound, overlay }) {
+    this.sound = sound ?? this.sound;
     const player = state.players.find((entry) => entry.id === event.playerId);
     const color = player?.color ?? "#ffffff";
 
@@ -340,6 +345,13 @@ export class Effects {
         sound?.shot(event.power);
         break;
       }
+      case "offmap":
+        this.ghosts.push({
+          ...event,
+          color: event.weapon === "standard" ? color : WEAPONS[event.weapon]?.color ?? "#ffffff",
+          age: 0,
+        });
+        break;
       case "split":
         this.burst(event, { count: 24, colors: ["#ffd166", "#ffb347", "#ffffff"], speed: 22, life: 0.45, size: 1.6, glow: true });
         this.flashLight(event, 120, 0.25, "#ffd166");
@@ -478,6 +490,7 @@ export class Effects {
     this.smoke.items.forEach((particle) => {
       particle.position.addScaledVector(this.windDrift, dt * 0.4);
     });
+    this.updateGhosts(dt);
     this.glow.update(dt);
     this.smoke.update(dt);
     this.updateDebris(dt);
@@ -529,6 +542,37 @@ export class Effects {
     }
     this.emitDamageSmoke(dt, state);
     this.emitTrail(dt, state);
+  }
+
+  // Tiros que sairam do mapa seguem a trajetoria ate cair no mar (respingo) ou nos bairros (poeira).
+  updateGhosts(dt) {
+    this.ghosts = this.ghosts.filter((ghost) => {
+      ghost.age += dt;
+      ghost.elapsed += dt * TIME_SCALE;
+      const point = projectileAt(ghost.origin, ghost.velocity, ghost.wind, ghost.elapsed, ghost.gravity);
+      this.burst(point, { count: 1, colors: [ghost.color], speed: 0.3, life: 0.6, size: 2.2, glow: true, alpha: 0.9 });
+      const water = isWater(point.x, point.z);
+      const surface = water ? WATER_LEVEL : -0.6;
+      if (point.y > surface && ghost.age < 9 && Math.abs(point.x) < 1500 && Math.abs(point.z) < 1500) {
+        return true;
+      }
+      if (point.y <= surface) {
+        this.splash({ x: point.x, y: surface, z: point.z }, water);
+      }
+      return false;
+    });
+  }
+
+  splash(point, water) {
+    if (water) {
+      this.burst(point, { count: 34, colors: ["#e6f4ff", "#bfe3f5", "#ffffff"], speed: 9, life: 1.2, size: 1.4, gravity: 22, lift: 16, alpha: 0.9 });
+      this.burst(point, { count: 10, colors: ["#d6ecf7"], speed: 4, life: 1.6, size: 4, grow: 3, alpha: 0.35, gravity: -1 });
+      this.spawnRing({ x: point.x, y: point.y - 0.2, z: point.z }, 9);
+      this.sound?.land();
+    } else {
+      this.spawnFireball({ x: point.x, y: point.y + 1, z: point.z }, 5);
+      this.burst(point, { count: 16, colors: ["#9a8b74", "#776b5a"], speed: 10, life: 1.8, size: 5, gravity: -1, grow: 3, drag: 2, alpha: 0.5 });
+    }
   }
 
   updateDebris(dt) {

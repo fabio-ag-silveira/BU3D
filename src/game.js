@@ -615,6 +615,16 @@ export class Game {
 
     if (isOutOfBounds(projectile.position)) {
       this.removeProjectile(projectile);
+      // So visual: o cliente continua o voo ate cair no mar ou nos bairros em volta.
+      this.emit("offmap", {
+        playerId: projectile.ownerId,
+        weapon: projectile.weapon,
+        origin: { ...projectile.origin },
+        velocity: { ...projectile.velocity },
+        wind: { ...projectile.wind },
+        gravity: projectile.gravity,
+        elapsed: projectile.elapsed,
+      });
     }
   }
 

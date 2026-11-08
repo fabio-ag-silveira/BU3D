@@ -46,6 +46,7 @@ No celular/tablet aparece uma barra de botões embaixo da tela, como na versão 
 - **Caixas de suprimento:** a partir do 3º turno caem caixas de paraquedas (Vida, Combustível, Munição). Pegue dirigindo até elas; um feixe de luz mostra onde estão.
 - **Condições da rodada** (a partir da 2ª): Tempestade (vento em dobro e chuva), Gravidade baixa, Neblina (visão curta e vento escondido) ou Arsenal (munição em dobro).
 - **Mapa:** no modo Dinâmico a cidade é sorteada a cada rodada (prédios, densidade, morros, ilhas flutuantes e passarelas entre telhados); o Clássico é a planta do BU3D original.
+- **Cenário em volta:** a arena fica entre bairros (casinhas, prédios baixos, praças e ruas que continuam as da cidade) e uma baía com barcos, calçadão e o skyline da outra margem. Janelas e postes acendem no entardecer e à noite. Tiros que saem do mapa seguem voando e caem no mar (respingo) ou nos bairros (poeira). É só visual: o cenário de fora não tem colisão.
 - **Replay:** o tiro que decide a rodada é reprisado em câmera lenta (atirar pula).
 - **Dificuldade da IA:** as três calculam o tiro certo; o que muda é o "erro humano" no ângulo e na força, quanto do vento a IA considera e o quão rápido ela corrige a mira a cada tiro contra o mesmo alvo. Contra um alvo parado, a IA precisa em média de ~11 tiros no fácil, ~8 no médio e ~5 no difícil, e o difícil erra o primeiro tiro cerca de metade das vezes.
 - **Timer:** 25 s por turno. Se acabar durante a carga, o tiro sai com a força atual; senão, a vez passa.
@@ -99,7 +100,7 @@ No mapa Clássico, a planta da cidade (21 prédios de 20, 30 e 50 de altura) e o
 - [src/map.js](src/map.js): gerador do mapa dinâmico (prédios, morros, ilhas, passarelas, spawns) e o mapa clássico.
 - [src/physics.js](src/physics.js): trajetória com vento, cano, hitbox, apoio e bloqueio dos carrinhos.
 - [src/config.js](src/config.js): constantes de gameplay, planta da cidade, spawns, temas e presets da IA.
-- [src/render/](src/render): cena three.js — céu e skyline (`sky.js`), cidade e ruas (`city.js`), carrinhos (`tank.js`), partículas/destroços/explosões (`effects.js`), câmeras (`camera.js`), replay (`replay.js`) e a montagem de tudo, com chuva, caixas e blocos desabando (`stage.js`).
+- [src/render/](src/render): cena three.js — céu e skyline (`sky.js`), cidade e ruas (`city.js`), carrinhos (`tank.js`), partículas/destroços/explosões (`effects.js`), câmeras (`camera.js`), replay (`replay.js`), bairros e baía em volta da arena (`surroundings.js`) e a montagem de tudo, com chuva, caixas e blocos desabando (`stage.js`).
 - [src/overlay.js](src/overlay.js): camada HTML sobre o canvas (placar, timer, vento, força, banners, dano e minimapa).
 - [src/hud.js](src/hud.js), [src/input.js](src/input.js), [src/audio.js](src/audio.js): painel lateral, teclado/toque e som.
 - [server.js](server.js): servidor HTTP estático para jogar localmente.

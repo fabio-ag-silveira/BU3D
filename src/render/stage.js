@@ -5,6 +5,7 @@ import { VoxelWorld, cellCoords, cellCenter } from "../world.js";
 import { getLayout, MATERIALS } from "../map.js";
 import { Sky, ARENA_CENTER } from "./sky.js";
 import { CityMesh, Ground } from "./city.js";
+import { Surroundings } from "./surroundings.js";
 import { TankModel } from "./tank.js";
 import { Effects } from "./effects.js";
 import { CameraRig } from "./camera.js";
@@ -43,6 +44,7 @@ export class Stage {
 
     this.sky = new Sky(this.scene);
     this.ground = new Ground(this.scene);
+    this.surroundings = new Surroundings(this.scene);
     this.city = new CityMesh(this.scene);
     this.world = new VoxelWorld();
     this.effects = new Effects(this.scene);
@@ -201,6 +203,7 @@ export class Stage {
     const sunDirection = new THREE.Vector3(...theme.sun.position).normalize();
     this.sky.applyTheme(theme, sunDirection);
     this.ground.applyTheme(theme);
+    this.surroundings.applyTheme(theme);
     this.scene.fog.color.set(theme.fog);
     this.scene.fog.density = theme.fogDensity;
     this.renderer.toneMappingExposure = theme.exposure;
@@ -543,6 +546,7 @@ export class Stage {
     this.cloudOffset.x += (2 + state.wind.x * 9) * dt;
     this.cloudOffset.z += (1 + state.wind.z * 9) * dt;
     this.sky.update(this.camera.position, this.cloudOffset);
+    this.surroundings.update(dt);
     this.updateRain(dt, state.wind);
 
     this.renderer.render(this.scene, this.camera);

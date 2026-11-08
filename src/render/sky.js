@@ -147,18 +147,25 @@ export class Sky {
       count,
     );
     const matrix = new THREE.Matrix4();
+    let placed = 0;
     for (let index = 0; index < count; index += 1) {
       const angle = (index / count) * Math.PI * 2 + rng() * 0.05;
-      const distance = 270 + rng() * 120;
-      const width = 14 + rng() * 22;
-      const height = 20 + rng() * 70;
+      const distance = 390 + rng() * 110;
+      const width = 16 + rng() * 24;
+      const height = 25 + rng() * 80;
+      // Do lado da baia o horizonte e o skyline da outra margem (em surroundings.js).
+      if (ARENA_CENTER.z + Math.sin(angle) * distance > 180) {
+        continue;
+      }
       matrix.compose(
         new THREE.Vector3(ARENA_CENTER.x + Math.cos(angle) * distance, -0.5, ARENA_CENTER.z + Math.sin(angle) * distance),
         new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -angle),
         new THREE.Vector3(width, height, width * (0.7 + rng() * 0.6)),
       );
-      mesh.setMatrixAt(index, matrix);
+      mesh.setMatrixAt(placed, matrix);
+      placed += 1;
     }
+    mesh.count = placed;
     return mesh;
   }
 
