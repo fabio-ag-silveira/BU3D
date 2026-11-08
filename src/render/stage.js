@@ -215,6 +215,7 @@ export class Stage {
     this.scene.fog.color.set(theme.fog);
     this.scene.fog.density = theme.fogDensity;
     this.renderer.toneMappingExposure = theme.exposure;
+    this.fogFloor = modifierId === "fog" ? 0.65 : 0.3;
     this.rain.visible = modifierId === "storm";
     if (modifierId === "fog") {
       this.scene.fog.density = theme.fogDensity * 3.4;
@@ -599,6 +600,9 @@ export class Stage {
 
   handleEvent(event, state, context, now) {
     this.effects.handleEvent(event, state, context);
+    if (event.type === "turn") {
+      this.rig.onTurn(state.players.find((player) => player.id === event.playerId));
+    }
     this.replay.handleEvent(event, now, context);
   }
 
@@ -618,6 +622,14 @@ export class Stage {
 
     this.cloudOffset.x += (2 + state.wind.x * 9) * dt;
     this.cloudOffset.z += (1 + state.wind.z * 9) * dt;
+    // Neblina mais fraca quando a camera esta longe do que olha (livre, visao geral, topo),
+    // para os carrinhos nao sumirem; de perto continua igual.
+    if (this.fogBase === undefined || this.themeKey !== this.fogKey) {
+      this.fogBase = this.scene.fog.density;
+      this.fogKey = this.themeKey;
+    }
+    const viewDistance = this.camera.position.distanceTo(this.rig.target);
+    this.scene.fog.density = this.fogBase * Math.min(1, Math.max(this.fogFloor ?? 0.3, 110 / Math.max(1, viewDistance)));
     this.sky.update(this.camera.position, this.cloudOffset);
     this.surroundings.update(dt);
     this.updateRain(dt, state.wind);

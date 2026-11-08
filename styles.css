@@ -1995,3 +1995,7 @@ body.minimap-off .minimap {
     bottom: 38px;
   }
 }
+
+.target-label.is-self {
+  background: color-mix(in srgb, var(--team) 35%, rgba(10, 12, 18, 0.7));
+}

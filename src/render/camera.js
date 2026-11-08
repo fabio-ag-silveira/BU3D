@@ -12,6 +12,7 @@ export const CAMERA_MODES = [
   { id: "free", label: "Livre" },
 ];
 
+const MAX_FREE_DISTANCE = 260;
 const tempA = new THREE.Vector3();
 const tempB = new THREE.Vector3();
 
@@ -41,15 +42,39 @@ export class CameraRig {
     this.listeners.add(listener);
   }
 
-  setMode(mode) {
-    if (!CAMERA_MODES.some((entry) => entry.id === mode) || mode === this.mode) {
+  // auto: a camera livre veio de arrastar/rolar na tela (nao foi escolhida no menu).
+  setMode(mode, { auto = false } = {}) {
+    if (!CAMERA_MODES.some((entry) => entry.id === mode)) {
+      return;
+    }
+    if (mode === this.mode) {
+      if (mode === "free" && !auto) {
+        this.freeAuto = false;
+      }
       return;
     }
     if (mode === "free") {
       this.syncOrbitFromCamera();
+      this.freeAuto = auto;
+      this.previousMode = this.mode;
     }
     this.mode = mode;
     this.listeners.forEach((listener) => listener(mode));
+  }
+
+  // Nova vez (ou rodada): a camera livre nao pode ficar presa onde estava.
+  // Se veio de arrastar, volta para a camera anterior; se foi escolhida, recentraliza no carrinho da vez.
+  onTurn(player) {
+    if (this.mode !== "free" || !player) {
+      return;
+    }
+    if (this.freeAuto && this.previousMode) {
+      this.setMode(this.previousMode);
+      return;
+    }
+    this.orbit.target.set(player.position.x, player.position.y + 3, player.position.z);
+    this.orbit.distance = Math.min(this.orbit.distance, 140);
+    this.orbit.pitch = clamp(this.orbit.pitch, 0.25, 0.9);
   }
 
   cycle(step = 1) {
@@ -63,7 +88,7 @@ export class CameraRig {
 
   syncOrbitFromCamera() {
     const offset = tempA.copy(this.position).sub(this.target);
-    const distance = Math.max(20, offset.length());
+    const distance = clamp(offset.length(), 20, MAX_FREE_DISTANCE);
     this.orbit.distance = distance;
     this.orbit.pitch = Math.asin(clamp(offset.y / distance, -0.99, 0.99));
     this.orbit.yaw = Math.atan2(offset.x, offset.z);
@@ -87,7 +112,7 @@ export class CameraRig {
       }
       if (!dragging.moved) {
         dragging.moved = true;
-        this.setMode("free");
+        this.setMode("free", { auto: true });
       }
       dragging.x = event.clientX;
       dragging.y = event.clientY;
@@ -111,9 +136,9 @@ export class CameraRig {
     element.addEventListener("wheel", (event) => {
       event.preventDefault();
       if (this.mode !== "free") {
-        this.setMode("free");
+        this.setMode("free", { auto: true });
       }
-      this.orbit.distance = clamp(this.orbit.distance * Math.exp(event.deltaY * 0.0012), 25, 420);
+      this.orbit.distance = clamp(this.orbit.distance * Math.exp(event.deltaY * 0.0012), 25, MAX_FREE_DISTANCE);
     }, { passive: false });
   }
 

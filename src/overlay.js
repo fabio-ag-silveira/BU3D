@@ -56,8 +56,11 @@ export class StageOverlay {
     const current = state.players[state.turnIndex];
     const showing = state.phase === "aiming" || state.phase === "flying" || state.phase === "settling";
     const alive = new Set();
+    // Com a camera afastada, o carrinho da vez tambem ganha etiqueta.
+    const far = stage.rig.mode !== "chase" || stage.camera.position.distanceTo(stage.rig.target) > 120;
     state.players.forEach((player) => {
-      if (player.id === current.id || player.hp <= 0 || !showing) {
+      const self = player.id === current.id;
+      if ((self && !far) || player.hp <= 0 || !showing) {
         return;
       }
       alive.add(player.id);
@@ -79,7 +82,10 @@ export class StageOverlay {
       label.style.setProperty("--team", player.color);
       label.classList.toggle("is-locked", locked);
       label.classList.toggle("is-sighted", inSights);
-      label.querySelector(".target-text").textContent = `${player.label} · ${distance} m${inSights ? " · NA MIRA" : ""}`;
+      label.classList.toggle("is-self", self);
+      label.querySelector(".target-text").textContent = self
+        ? `${player.label} · sua vez`
+        : `${player.label} · ${distance} m${inSights ? " · NA MIRA" : ""}`;
       const screen = stage.projectEdge({ x: player.position.x, y: player.position.y + 8, z: player.position.z }, 46);
       label.classList.toggle("is-edge", !screen.onScreen);
       label.style.transform = `translate(${screen.x}px, ${screen.y}px) translate(-50%, -50%)`;
