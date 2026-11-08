@@ -713,9 +713,8 @@ export class Game {
     } else {
       this.status = "Errou! O tiro atingiu o cenário.";
     }
-    if (report.dealt === 0) {
-      this.rememberAiMiss();
-    }
+    // Todo tiro serve de referencia para a IA corrigir a mira (nao so os que erram por completo).
+    this.rememberAiMiss();
     this.setPhase("settling", PHASE_DELAYS.settle);
   }
 

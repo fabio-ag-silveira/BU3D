@@ -47,6 +47,7 @@ No celular/tablet aparece uma barra de botões embaixo da tela, como na versão 
 - **Condições da rodada** (a partir da 2ª): Tempestade (vento em dobro e chuva), Gravidade baixa, Neblina (visão curta e vento escondido) ou Arsenal (munição em dobro).
 - **Mapa:** no modo Dinâmico a cidade é sorteada a cada rodada (prédios, densidade, morros, ilhas flutuantes e passarelas entre telhados); o Clássico é a planta do BU3D original.
 - **Replay:** o tiro que decide a rodada é reprisado em câmera lenta (atirar pula).
+- **Dificuldade da IA:** as três calculam o tiro certo; o que muda é o "erro humano" no ângulo e na força, quanto do vento a IA considera e o quão rápido ela corrige a mira a cada tiro contra o mesmo alvo. Contra um alvo parado, a IA precisa em média de ~11 tiros no fácil, ~8 no médio e ~5 no difícil, e o difícil erra o primeiro tiro cerca de metade das vezes.
 - **Timer:** 25 s por turno. Se acabar durante a carga, o tiro sai com a força atual; senão, a vez passa.
 - **Minimapa:** radar que gira com a câmera, com alturas dos prédios, crateras, carrinhos, caixas e a direção da mira (pode ser desligado no painel).
 
@@ -93,7 +94,7 @@ No mapa Clássico, a planta da cidade (21 prédios de 20, 30 e 50 de altura) e o
 ## Estrutura
 
 - [src/game.js](src/game.js): estado da partida, fases do turno, entrada, dano e quedas. Não usa DOM.
-- [src/ai.js](src/ai.js): IA que busca (giro, elevação, força) simulando trajetórias com vento, gravidade, prédios e crateras, escolhe arma e alvo, e lembra dos tiros que erraram.
+- [src/ai.js](src/ai.js): IA que busca (giro, elevação, força) simulando trajetórias com vento, gravidade, prédios e crateras, escolhe arma e alvo; a dificuldade é o erro de mira (que diminui a cada tiro contra o mesmo alvo) e quanto do vento ela considera.
 - [src/world.js](src/world.js): grade de voxels, crateras e desabamento (tudo derivado do mapa + lista de crateras).
 - [src/map.js](src/map.js): gerador do mapa dinâmico (prédios, morros, ilhas, passarelas, spawns) e o mapa clássico.
 - [src/physics.js](src/physics.js): trajetória com vento, cano, hitbox, apoio e bloqueio dos carrinhos.

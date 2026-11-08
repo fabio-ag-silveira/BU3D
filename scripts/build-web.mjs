@@ -8,7 +8,7 @@ const dist = join(root, "dist");
 
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist);
-["index.html", "styles.css", "src", "vendor"].forEach((entry) => {
+["index.html", "styles.css", "favicon.svg", "favicon-32.png", "apple-touch-icon.png", "src", "vendor"].forEach((entry) => {
   cpSync(join(root, entry), join(dist, entry), { recursive: true });
 });
 console.log("dist/ pronto.");

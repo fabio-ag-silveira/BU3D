@@ -27,42 +27,40 @@ export const AI_DIFFICULTIES = {
 export const DEFAULT_GAME_MODE = GAME_MODES.ai;
 export const DEFAULT_AI_DIFFICULTY = AI_DIFFICULTIES.medium;
 export const AI_THINK_DELAY_MS = 800;
+// Todas as dificuldades calculam o tiro certo com a mesma busca; o que muda e o "erro humano":
+// desvio (desvio-padrao) no giro, na elevacao e na forca, que diminui a cada erro contra o mesmo
+// alvo (learning) ate um minimo (minError), e quanto a IA considera o vento.
+export const AI_PLANNER = {
+  yawSpan: 14,
+  yawStep: 3,
+  elevationStep: 5,
+  velocityStep: 3,
+  simulationStep: 0.06,
+};
 export const AI_PRESETS = {
   [AI_DIFFICULTIES.easy]: {
     label: "IA fácil",
-    yawSpan: 12,
-    yawStep: 4,
-    elevationStep: 6,
-    velocityStep: 4,
-    simulationStep: 0.08,
-    aimJitter: { yaw: 3.5, elevation: 3.5, velocity: 3 },
-    windKnowledge: 0.4,
-    candidatePool: 6,
-    refinement: false,
+    aimError: { yaw: 3.2, elevation: 3.2, power: 6.5 },
+    learning: 0.75,
+    minError: 0.45,
+    windKnowledge: 0.35,
+    specialChance: 0.25,
   },
   [AI_DIFFICULTIES.medium]: {
     label: "IA média",
-    yawSpan: 12,
-    yawStep: 3,
-    elevationStep: 5,
-    velocityStep: 3,
-    simulationStep: 0.06,
-    aimJitter: { yaw: 1.5, elevation: 2, velocity: 1.5 },
-    windKnowledge: 0.75,
-    candidatePool: 5,
-    refinement: false,
+    aimError: { yaw: 3, elevation: 3, power: 6.5 },
+    learning: 0.62,
+    minError: 0.35,
+    windKnowledge: 0.6,
+    specialChance: 0.45,
   },
   [AI_DIFFICULTIES.hard]: {
     label: "IA difícil",
-    yawSpan: 14,
-    yawStep: 2,
-    elevationStep: 4,
-    velocityStep: 2,
-    simulationStep: 0.05,
-    aimJitter: { yaw: 0, elevation: 0, velocity: 0 },
-    windKnowledge: 1,
-    candidatePool: 1,
-    refinement: true,
+    aimError: { yaw: 2, elevation: 2, power: 4.2 },
+    learning: 0.4,
+    minError: 0.12,
+    windKnowledge: 0.85,
+    specialChance: 0.7,
   },
 };
 

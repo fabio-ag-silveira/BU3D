@@ -1,4 +1,5 @@
 import {
+  AI_PLANNER,
   AI_PRESETS,
   ROUND_MODIFIERS,
   ELEVATION_LIMITS,
@@ -74,19 +75,19 @@ export function simulateShot(world, attacker, target, shot, wind, simulationStep
 }
 
 function buildStateKey(game, attacker, target) {
+  // Posicoes aproximadas: o empurrao das explosoes nao deve apagar o que a IA aprendeu.
+  const coarse = (value) => Math.round(value / 12);
   return [
-    Math.round(attacker.position.x),
-    Math.round(attacker.position.y),
-    Math.round(attacker.position.z),
-    Math.round(target.position.x),
-    Math.round(target.position.y),
-    Math.round(target.position.z),
+    attacker.id,
+    target.id,
+    coarse(attacker.position.x),
+    coarse(attacker.position.y),
+    coarse(attacker.position.z),
+    coarse(target.position.x),
+    coarse(target.position.y),
+    coarse(target.position.z),
     game.aiDifficulty,
   ].join(":");
-}
-
-function sameShot(a, b) {
-  return a.yaw === b.yaw && a.elevation === b.elevation && a.velocity === b.velocity;
 }
 
 function refineShot(world, attacker, target, seed, wind, gravity) {
@@ -112,17 +113,27 @@ function refineShot(world, attacker, target, seed, wind, gravity) {
   return best;
 }
 
-function applyImprecision(shot, preset) {
-  const jitter = (amount) => (Math.random() * 2 - 1) * amount;
+// Normal padrao (Box-Muller): erros pequenos sao comuns e grandes sao raros, como numa pessoa.
+function gaussian() {
+  const u = 1 - Math.random();
+  const v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+function applyImprecision(shot, preset, scale) {
+  const error = preset.aimError;
   return {
-    yaw: wrapDegrees(shot.yaw + jitter(preset.aimJitter.yaw)),
-    elevation: clamp(shot.elevation + jitter(preset.aimJitter.elevation), ELEVATION_LIMITS.min, ELEVATION_LIMITS.max),
-    velocity: clamp(shot.velocity + jitter(preset.aimJitter.velocity), POWER_MIN_VELOCITY, POWER_MAX_VELOCITY),
+    yaw: wrapDegrees(shot.yaw + gaussian() * error.yaw * scale),
+    elevation: clamp(shot.elevation + gaussian() * error.elevation * scale, ELEVATION_LIMITS.min, ELEVATION_LIMITS.max),
+    velocity: clamp(shot.velocity * (1 + (gaussian() * error.power * scale) / 100), POWER_MIN_VELOCITY, POWER_MAX_VELOCITY),
   };
 }
 
 // Pesado quando acha um tiro certeiro; fragmentacao quando so chega perto.
-function chooseWeapon(attacker, score) {
+function chooseWeapon(attacker, score, preset) {
+  if (Math.random() >= preset.specialChance) {
+    return "standard";
+  }
   if (score === 0 && attacker.ammo.heavy > 0) {
     return "heavy";
   }
@@ -141,28 +152,29 @@ export function planAiShot(game) {
   const target = game.pickAiTarget();
   const world = game.world;
   const preset = AI_PRESETS[game.aiDifficulty];
-  const knowledge = preset.windKnowledge * (ROUND_MODIFIERS[game.modifier]?.aiWindScale ?? 1);
-  const wind = { x: game.wind.x * knowledge, z: game.wind.z * knowledge };
   const stateKey = buildStateKey(game, attacker, target);
-  const previousMisses = game.aiMissMemory.get(stateKey) ?? [];
+  const misses = game.aiMissMemory.get(stateKey)?.length ?? 0;
+  // A cada erro a IA tambem "le" melhor o vento (o erro de vento e sistematico, nao some com sorte).
+  const baseKnowledge = preset.windKnowledge * (ROUND_MODIFIERS[game.modifier]?.aiWindScale ?? 1);
+  const knowledge = 1 - (1 - baseKnowledge) * preset.learning ** misses;
+  const wind = { x: game.wind.x * knowledge, z: game.wind.z * knowledge };
   const bearing = Math.round(bearingTo(attacker.position, target.position));
   const candidates = [];
   let selected = null;
 
   search:
-  for (let offset = 0; offset <= preset.yawSpan; offset += preset.yawStep) {
+  for (let offset = 0; offset <= AI_PLANNER.yawSpan; offset += AI_PLANNER.yawStep) {
     for (const sign of offset === 0 ? [1] : [1, -1]) {
       const yaw = wrapDegrees(bearing + sign * offset);
-      for (let elevation = 0; elevation <= 80; elevation += preset.elevationStep) {
-        for (let velocity = POWER_MIN_VELOCITY; velocity <= POWER_MAX_VELOCITY; velocity += preset.velocityStep) {
+      for (let elevation = 0; elevation <= 80; elevation += AI_PLANNER.elevationStep) {
+        for (let velocity = POWER_MIN_VELOCITY; velocity <= POWER_MAX_VELOCITY; velocity += AI_PLANNER.velocityStep) {
           const shot = { yaw, elevation, velocity };
-          const result = simulateShot(world, attacker, target, shot, wind, preset.simulationStep, game.gravity);
-          if (result.hitTarget && !previousMisses.some((miss) => sameShot(miss, shot))) {
+          const result = simulateShot(world, attacker, target, shot, wind, AI_PLANNER.simulationStep, game.gravity);
+          if (result.hitTarget) {
             selected = { ...shot, score: 0 };
             break search;
           }
-          const penalty = previousMisses.some((miss) => sameShot(miss, shot)) ? 250 : 0;
-          candidates.push({ ...shot, score: result.score + penalty });
+          candidates.push({ ...shot, score: result.score });
         }
       }
     }
@@ -170,31 +182,20 @@ export function planAiShot(game) {
 
   if (!selected) {
     candidates.sort((a, b) => a.score - b.score);
-    let best = candidates[0] ?? { yaw: attacker.yaw, elevation: 45, velocity: 35, score: Number.POSITIVE_INFINITY };
-    if (preset.refinement) {
-      best = refineShot(world, attacker, target, best, wind, game.gravity);
-      selected = best;
-    } else {
-      const pool = candidates.slice(0, Math.max(1, preset.candidatePool));
-      selected = pool[Math.floor(Math.random() * pool.length)] ?? best;
-    }
+    const best = candidates[0] ?? { yaw: attacker.yaw, elevation: 45, velocity: 35, score: Number.POSITIVE_INFINITY };
+    selected = refineShot(world, attacker, target, best, wind, game.gravity);
   }
 
-  // Cada erro na mesma situacao deixa a mira mais firme (a IA "corrige" o tiro).
-  const steadiness = 1 / (1 + previousMisses.length * 0.6);
-  const shot = applyImprecision(selected, {
-    aimJitter: {
-      yaw: preset.aimJitter.yaw * steadiness,
-      elevation: preset.aimJitter.elevation * steadiness,
-      velocity: preset.aimJitter.velocity * steadiness,
-    },
-  });
+  // Erro humano: diminui a cada erro contra o mesmo alvo, ate o minimo da dificuldade.
+  const scale = Math.max(preset.minError, preset.learning ** misses);
+  const shot = applyImprecision(selected, preset, scale);
   return {
-    weapon: chooseWeapon(attacker, selected.score),
+    weapon: chooseWeapon(attacker, selected.score, preset),
     yaw: shot.yaw,
     elevation: shot.elevation,
     power: velocityToPower(shot.velocity),
     stateKey,
+    expectedMiss: selected.score,
     source: { yaw: selected.yaw, elevation: selected.elevation, velocity: selected.velocity },
   };
 }

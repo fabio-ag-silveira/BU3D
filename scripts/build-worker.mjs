@@ -10,7 +10,10 @@ const TYPES = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
 };
+const BINARY = new Set([".png"]);
 
 function collect(path) {
   if (statSync(path).isDirectory()) {
@@ -19,11 +22,13 @@ function collect(path) {
   return TYPES[extname(path)] ? [path] : [];
 }
 
-const files = Object.fromEntries(["index.html", "styles.css", "src", "vendor"]
+const files = Object.fromEntries(["index.html", "styles.css", "favicon.svg", "favicon-32.png", "apple-touch-icon.png", "src", "vendor"]
   .flatMap((entry) => collect(join(root, entry)))
   .map((path) => [
     `/${relative(root, path).split(sep).join("/")}`,
-    { type: TYPES[extname(path)], body: readFileSync(path, "utf8") },
+    BINARY.has(extname(path))
+      ? { type: TYPES[extname(path)], base64: readFileSync(path).toString("base64") }
+      : { type: TYPES[extname(path)], body: readFileSync(path, "utf8") },
   ]));
 
 const worker = `const FILES = ${JSON.stringify(files)};
@@ -36,7 +41,8 @@ export default {
     if (!file) {
       return new Response("Not found", { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
     }
-    return new Response(file.body, {
+    const body = file.base64 ? Uint8Array.from(atob(file.base64), (char) => char.charCodeAt(0)) : file.body;
+    return new Response(body, {
       headers: {
         "content-type": file.type,
         "cache-control": path.startsWith("/vendor/") ? "public, max-age=604800" : "no-cache",
