@@ -61,7 +61,7 @@ function createInputState() {
   return Object.fromEntries(CONTROLS.map((control) => [control, false]));
 }
 
-const SPAWN_WEIGHTS = { island: 0.35, roof: 0.4, street: 0.25 };
+const SPAWN_WEIGHTS = { island: 0.35, roof: 0.4, street: 0.25, bridge: 0.2 };
 
 function weightedSpawn(candidates) {
   const kinds = [...new Set(candidates.map((spawn) => spawn.kind))];
@@ -431,12 +431,21 @@ export class Game {
     };
     const other = this.players.find((entry) => entry !== player);
     if (isTankBlocked(this.world, next, player.yaw, direction, other)) {
-      // Sobe degraus de um voxel (morros, escombros).
-      const step = { ...next, y: next.y + VOXEL_SIZE };
-      if (isTankBlocked(this.world, step, player.yaw, direction, other) || !isTankSupported(this.world, step, player.yaw)) {
+      // Sobe degraus de um voxel (morros, escombros, telhado vizinho), avancando ate apoiar no degrau.
+      const step = [0, 1, 2]
+        .map((extra) => ({
+          x: next.x + forward.x * direction * extra,
+          y: next.y + VOXEL_SIZE,
+          z: next.z + forward.z * direction * extra,
+        }))
+        .find((candidate) => !isTankBlocked(this.world, candidate, player.yaw, direction, other) &&
+          isTankSupported(this.world, candidate, player.yaw));
+      if (!step) {
         return;
       }
+      next.x = step.x;
       next.y = step.y;
+      next.z = step.z;
     }
     player.fuel = Math.max(0, player.fuel - distance);
     player.position = next;

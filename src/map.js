@@ -146,6 +146,65 @@ function addMound(layout, rng, x, z) {
   layout.parks.push({ x, z, radius: radius + 3, peak });
 }
 
+// Passarela entre dois predios vizinhos de altura parecida, rente ao telhado mais baixo.
+function addBridge(layout, a, b, axis) {
+  const deckWidth = 6;
+  const along = axis === "x" ? ["minIx", "maxIx"] : ["minIz", "maxIz"];
+  const across = axis === "x" ? ["minIz", "maxIz"] : ["minIx", "maxIx"];
+  const [first, second] = a[along[0]] < b[along[0]] ? [a, b] : [b, a];
+  const start = first[along[1]] + 1;
+  const end = second[along[0]] - 1;
+  const overlapMin = Math.max(a[across[0]], b[across[0]]);
+  const overlapMax = Math.min(a[across[1]], b[across[1]]);
+  if (end < start || overlapMax - overlapMin + 1 < deckWidth) {
+    return false;
+  }
+  const middle = Math.floor((overlapMin + overlapMax + 1) / 2);
+  const deckMin = middle - deckWidth / 2;
+  const deckMax = deckMin + deckWidth - 1;
+  const deckY = Math.min(a.layers, b.layers) - 1;
+  for (let step = start; step <= end; step += 1) {
+    for (let side = deckMin - 1; side <= deckMax + 1; side += 1) {
+      const rail = side < deckMin || side > deckMax;
+      const ix = axis === "x" ? step : side;
+      const iz = axis === "x" ? side : step;
+      const levels = rail ? [deckY, deckY + 1] : [deckY];
+      levels.forEach((iy) => {
+        if (inside(ix, iy, iz) && !layout.cells[cellIndex(ix, iy, iz)]) {
+          layout.cells[cellIndex(ix, iy, iz)] = MATERIALS.bridge;
+        }
+      });
+    }
+  }
+  const mid = (start + end + 1) / 2;
+  const cross = (deckMin + deckMax + 1) / 2;
+  const x = originX + (axis === "x" ? mid : cross) * VOXEL_SIZE;
+  const z = originZ + (axis === "x" ? cross : mid) * VOXEL_SIZE;
+  layout.bridges.push({ x, z, y: (deckY + 1) * VOXEL_SIZE, axis });
+  layout.spawns.push({ x, y: (deckY + 1) * VOXEL_SIZE, z, kind: "bridge" });
+  return true;
+}
+
+function addBridges(layout, rng, lattice) {
+  const pairs = [];
+  lattice.forEach((column, ci) => {
+    column.forEach((building, ri) => {
+      const right = lattice[ci + 1]?.[ri];
+      const down = column[ri + 1];
+      [[right, "x"], [down, "z"]].forEach(([other, axis]) => {
+        if (building && other && building.layers >= 8 && Math.abs(building.layers - other.layers) <= 1) {
+          pairs.push([building, other, axis]);
+        }
+      });
+    });
+  });
+  const wanted = 1 + Math.floor(rng() * 3);
+  while (pairs.length && layout.bridges.length < wanted) {
+    const [a, b, axis] = pairs.splice(Math.floor(rng() * pairs.length), 1)[0];
+    addBridge(layout, a, b, axis);
+  }
+}
+
 function addIsland(layout, rng) {
   for (let attempt = 0; attempt < 60; attempt += 1) {
     const radius = 6 + Math.floor(rng() * 3);
@@ -228,8 +287,9 @@ function generateDynamic(seed) {
   layout.density = density.label;
 
   const empties = [];
-  COLUMNS.forEach((x) => {
-    ROWS.forEach((z) => {
+  const lattice = COLUMNS.map(() => ROWS.map(() => null));
+  COLUMNS.forEach((x, column) => {
+    ROWS.forEach((z, row) => {
       if (rng() < density.empty) {
         empties.push({ x, z });
         return;
@@ -245,6 +305,7 @@ function generateDynamic(seed) {
         halfZ: 3 + Math.floor(rng() * 3),
         layers,
       });
+      lattice[column][row] = building;
       const halfX = (building.maxIx - building.minIx + 1) / 2;
       const halfZ = (building.maxIz - building.minIz + 1) / 2;
       if (Math.min(halfX, halfZ) >= 4 || rng() < 0.5) {
@@ -259,6 +320,8 @@ function generateDynamic(seed) {
       addMound(layout, rng, slot.x, slot.z);
     }
   });
+
+  addBridges(layout, rng, lattice);
 
   const islandCount = 2 + Math.floor(rng() * 3);
   for (let index = 0; index < islandCount; index += 1) {

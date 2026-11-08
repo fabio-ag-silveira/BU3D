@@ -326,7 +326,7 @@ export class Stage {
     this.buildingColors[MATERIALS.grass] = new THREE.Color("#5d8f3b");
     this.buildingColors[MATERIALS.rock] = new THREE.Color("#6f6a62");
     this.buildingColors[MATERIALS.concrete] = new THREE.Color("#a3a3a0");
-    this.buildingColors[MATERIALS.bridge] = new THREE.Color("#8c8f96");
+    this.buildingColors[MATERIALS.bridge] = new THREE.Color("#b9875a");
   }
 
   syncWorld(state) {

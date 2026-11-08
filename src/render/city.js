@@ -8,7 +8,7 @@ const MATERIAL_COLORS = {
   [MATERIALS.rock]: "#6f6a62",
   [MATERIALS.grass]: "#5d8f3b",
   [MATERIALS.concrete]: "#a3a3a0",
-  [MATERIALS.bridge]: "#8c8f96",
+  [MATERIALS.bridge]: "#b9875a",
 };
 
 function hash(index, seed) {
