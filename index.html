@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Batalha Urbana 3D</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.min.js" } }
+  </script>
+</head>
+<body>
+  <main class="app-shell">
+    <section class="hud">
+      <div class="hud-card">
+        <p class="eyebrow">Estado da partida</p>
+        <h1>Batalha Urbana <span class="title-3d">3D</span></h1>
+        <p id="roundLabel" class="round-label"></p>
+        <p id="turnLabel" class="turn-label"></p>
+        <p id="statusLabel" class="status-label"></p>
+      </div>
+
+      <div class="hud-card controls-card">
+        <p class="eyebrow">Controles de partida</p>
+        <div class="control-group">
+          <p class="control-title">Modo</p>
+          <div class="button-row" id="modeButtons">
+            <button type="button" class="hud-button" data-mode="ai">Versus IA</button>
+            <button type="button" class="hud-button" data-mode="local">Versus Local</button>
+            <button type="button" class="hud-button" data-mode="lan">LAN</button>
+          </div>
+        </div>
+        <div class="control-group">
+          <p class="control-title">Dificuldade IA</p>
+          <div class="button-row" id="difficultyButtons">
+            <button type="button" class="hud-button" data-difficulty="easy">Fácil</button>
+            <button type="button" class="hud-button" data-difficulty="medium">Média</button>
+            <button type="button" class="hud-button" data-difficulty="hard">Difícil</button>
+            <button type="button" class="hud-button" id="soundButton">Som: ligado</button>
+          </div>
+        </div>
+        <div class="control-group">
+          <p class="control-title">Câmera</p>
+          <div class="button-row" id="cameraButtons">
+            <button type="button" class="hud-button" data-camera="chase">Perseguição</button>
+            <button type="button" class="hud-button" data-camera="tactical">Tática</button>
+            <button type="button" class="hud-button" data-camera="overview">Geral</button>
+            <button type="button" class="hud-button" data-camera="top">Topo</button>
+            <button type="button" class="hud-button" data-camera="free">Livre</button>
+          </div>
+        </div>
+        <div class="control-group lan-group">
+          <p class="control-title">Sala LAN</p>
+          <div class="lan-fields">
+            <label class="field-label" for="serverUrlInput">Servidor</label>
+            <input id="serverUrlInput" class="hud-input" type="text" placeholder="http://192.168.0.10:8000">
+          </div>
+          <div class="button-row">
+            <button type="button" class="hud-button" id="createRoomButton">Criar sala</button>
+            <button type="button" class="hud-button" id="refreshRoomsButton">Atualizar</button>
+            <button type="button" class="hud-button" id="leaveRoomButton">Sair</button>
+          </div>
+          <div id="roomList" class="room-list"></div>
+          <p id="connectionStatus" class="note">Não conectado</p>
+        </div>
+      </div>
+
+      <div class="hud-grid">
+        <article class="hud-card player-card player-one">
+          <p class="eyebrow">Player 1</p>
+          <div id="playerOneStats" class="stats-panel"></div>
+          <div class="shortcut-list">
+            <span class="shortcut-pill"><strong>W/S</strong> elevação</span>
+            <span class="shortcut-pill"><strong>A/D</strong> gira</span>
+            <span class="shortcut-pill"><strong>Q/E</strong> ré/frente</span>
+            <span class="shortcut-pill"><strong>F</strong> segure e solte</span>
+          </div>
+        </article>
+
+        <article class="hud-card player-card player-two">
+          <p class="eyebrow">Player 2</p>
+          <div id="playerTwoStats" class="stats-panel"></div>
+          <div class="shortcut-list">
+            <span class="shortcut-pill"><strong>I/K</strong> elevação</span>
+            <span class="shortcut-pill"><strong>J/L</strong> gira</span>
+            <span class="shortcut-pill"><strong>U/O</strong> ré/frente</span>
+            <span class="shortcut-pill"><strong>H</strong> segure e solte</span>
+          </div>
+        </article>
+      </div>
+
+      <div class="hud-card footer-card">
+        <p class="eyebrow">Atalhos</p>
+        <div class="shortcut-list compact">
+          <span class="shortcut-pill"><strong>Setas , . Espaço</strong> jogador da vez</span>
+          <span class="shortcut-pill"><strong>C</strong> câmera</span>
+          <span class="shortcut-pill"><strong>M</strong> troca modo</span>
+          <span class="shortcut-pill"><strong>N</strong> muda IA</span>
+          <span class="shortcut-pill"><strong>X</strong> som</span>
+          <span class="shortcut-pill"><strong>B</strong> reinicia</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="stage-shell">
+      <canvas id="gameCanvas" aria-label="Campo de batalha 3D"></canvas>
+
+      <div class="stage-overlay">
+        <div class="topbar">
+          <div class="tb-player" data-overlay-player="1">
+            <div class="tb-head">
+              <span class="tb-name">Player 1</span>
+              <span class="tb-rounds"></span>
+            </div>
+            <div class="tb-hp"><span></span></div>
+            <div class="tb-meta">
+              <div class="tb-fuel" title="Combustível"><span></span></div>
+              <span class="tb-hp-value">100</span>
+            </div>
+          </div>
+
+          <div class="tb-center">
+            <span class="tb-round">Rodada 1</span>
+            <span class="tb-timer">–</span>
+            <div class="tb-wind" title="Vento relativo à câmera">
+              <div class="wind-dial"><div class="wind-arrow"></div></div>
+              <span class="wind-value">0 km/h</span>
+            </div>
+          </div>
+
+          <div class="tb-player is-right" data-overlay-player="2">
+            <div class="tb-head">
+              <span class="tb-rounds"></span>
+              <span class="tb-name">Player 2</span>
+            </div>
+            <div class="tb-hp"><span></span></div>
+            <div class="tb-meta">
+              <span class="tb-hp-value">100</span>
+              <div class="tb-fuel" title="Combustível"><span></span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="banner"></div>
+        <div class="float-layer"></div>
+
+        <div class="power-panel">
+          <div class="power-bar"><span class="power-fill"></span><span class="power-marker"></span></div>
+          <p class="aim-readout"></p>
+        </div>
+
+        <p class="camera-chip"></p>
+        <canvas class="minimap" aria-label="Minimapa"></canvas>
+
+        <div id="webglError" class="webgl-error" hidden>
+          Seu navegador não conseguiu iniciar o WebGL. Ative a aceleração de hardware ou tente outro navegador.
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
