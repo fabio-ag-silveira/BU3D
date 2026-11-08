@@ -1,4 +1,4 @@
-import { ARENA, FUEL_PER_TURN, GRID, MAX_HP, ROUNDS_TO_WIN, VOXEL_SIZE, WEAPONS, WIND_MAX } from "./config.js";
+import { ARENA, FUEL_PER_TURN, GRID, MAX_HP, ROUND_MODIFIERS, ROUNDS_TO_WIN, VOXEL_SIZE, WEAPONS, WIND_MAX } from "./config.js";
 import { degToRad, radToDeg } from "./math.js";
 
 const MAP_WIDTH = ARENA.maxX - ARENA.minX;
@@ -26,6 +26,7 @@ export class StageOverlay {
       timer: root.querySelector(".tb-timer"),
       windArrow: root.querySelector(".wind-arrow"),
       windValue: root.querySelector(".wind-value"),
+      modifier: root.querySelector(".modifier-chip"),
       power: root.querySelector(".power-panel"),
       powerFill: root.querySelector(".power-fill"),
       powerMarker: root.querySelector(".power-marker"),
@@ -117,14 +118,28 @@ export class StageOverlay {
       this.el.timer.classList.toggle("is-urgent", typeof value === "number" && value <= 5);
     });
 
-    const windStrength = Math.hypot(state.wind.x, state.wind.z);
-    const windBearing = radToDeg(Math.atan2(state.wind.x, state.wind.z));
-    const relative = windBearing - stage.rig.heading;
-    this.el.windArrow.style.transform = `rotate(${-relative}deg) scale(${0.6 + 0.4 * Math.min(1, windStrength / WIND_MAX)})`;
-    this.el.windArrow.style.opacity = windStrength < 0.05 ? 0.25 : 1;
-    this.write("wind", Math.round(windStrength * 20), (value) => {
-      this.el.windValue.textContent = `${value} km/h`;
+    const modifier = ROUND_MODIFIERS[state.modifier] ?? ROUND_MODIFIERS.normal;
+    this.write("modifier", modifier.id, () => {
+      this.el.modifier.textContent = modifier.label;
+      this.el.modifier.dataset.modifier = modifier.id;
+      this.el.modifier.hidden = modifier.id === "normal";
     });
+
+    const windStrength = Math.hypot(state.wind.x, state.wind.z);
+    if (modifier.hideWind) {
+      this.el.windArrow.style.opacity = 0;
+      this.write("wind", "hidden", () => {
+        this.el.windValue.textContent = "? km/h";
+      });
+    } else {
+      const windBearing = radToDeg(Math.atan2(state.wind.x, state.wind.z));
+      const relative = windBearing - stage.rig.heading;
+      this.el.windArrow.style.transform = `rotate(${-relative}deg) scale(${0.6 + 0.4 * Math.min(1, windStrength / (WIND_MAX * 2))})`;
+      this.el.windArrow.style.opacity = windStrength < 0.05 ? 0.25 : 1;
+      this.write("wind", Math.round(windStrength * 20), (value) => {
+        this.el.windValue.textContent = `${value} km/h`;
+      });
+    }
 
     const aiming = state.phase === "aiming";
     this.write("powerVisible", aiming, (value) => {

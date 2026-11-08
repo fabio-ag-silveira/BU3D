@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { SKY_THEMES, WEAPONS } from "../config.js";
+import { ROUND_MODIFIERS, SKY_THEMES, WEAPONS } from "../config.js";
 import { getMuzzle, getLaunchVelocity, powerToVelocity, projectileAt } from "../physics.js";
 import { VoxelWorld, BUILDINGS } from "../world.js";
 import { Sky, ARENA_CENTER } from "./sky.js";
@@ -51,6 +51,7 @@ export class Stage {
     this.buildingColors = {};
 
     this.createProjectileAssets();
+    this.createRain();
     this.createGuide();
     this.resize();
   }
@@ -98,6 +99,54 @@ export class Stage {
     return group;
   }
 
+  // Chuva da Tempestade: riscos que acompanham a camera e inclinam com o vento.
+  createRain() {
+    const count = 1400;
+    this.rainDrops = Array.from({ length: count }, () => ({
+      x: (Math.random() * 2 - 1) * 90,
+      y: Math.random() * 90,
+      z: (Math.random() * 2 - 1) * 90,
+      speed: 70 + Math.random() * 30,
+    }));
+    this.rainPositions = new Float32Array(count * 6);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(this.rainPositions, 3).setUsage(THREE.DynamicDrawUsage));
+    this.rain = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({
+      color: "#b8c6d8",
+      transparent: true,
+      opacity: 0.45,
+      depthWrite: false,
+    }));
+    this.rain.frustumCulled = false;
+    this.rain.visible = false;
+    this.scene.add(this.rain);
+  }
+
+  updateRain(dt, wind) {
+    if (!this.rain.visible) {
+      return;
+    }
+    const center = this.camera.position;
+    const slantX = wind.x * 0.06;
+    const slantZ = wind.z * 0.06;
+    this.rainDrops.forEach((drop, index) => {
+      drop.y -= drop.speed * dt;
+      drop.x += wind.x * 6 * dt;
+      drop.z += wind.z * 6 * dt;
+      if (drop.y < -40) {
+        drop.y += 90;
+      }
+      const wrap = (value) => ((((value + 90) % 180) + 180) % 180) - 90;
+      drop.x = wrap(drop.x);
+      drop.z = wrap(drop.z);
+      const x = center.x + drop.x;
+      const y = center.y + drop.y - 30;
+      const z = center.z + drop.z;
+      this.rainPositions.set([x, y, z, x - slantX * 2.6, y + 2.6, z - slantZ * 2.6], index * 6);
+    });
+    this.rain.geometry.attributes.position.needsUpdate = true;
+  }
+
   createGuide() {
     this.guidePositions = new Float32Array(GUIDE_POINTS * 3);
     const geometry = new THREE.BufferGeometry();
@@ -138,19 +187,36 @@ export class Stage {
     this.effects.resize(height);
   }
 
-  applyTheme(theme) {
+  applyTheme(theme, modifierId = "normal") {
     const sunDirection = new THREE.Vector3(...theme.sun.position).normalize();
     this.sky.applyTheme(theme, sunDirection);
     this.ground.applyTheme(theme);
     this.scene.fog.color.set(theme.fog);
     this.scene.fog.density = theme.fogDensity;
+    this.renderer.toneMappingExposure = theme.exposure;
+    this.rain.visible = modifierId === "storm";
+    if (modifierId === "fog") {
+      this.scene.fog.density = theme.fogDensity * 3.4;
+      this.scene.fog.color.lerp(new THREE.Color("#c9ced6"), theme.id === "night" ? 0.1 : 0.5);
+    } else if (modifierId === "storm") {
+      this.scene.fog.density = theme.fogDensity * 1.6;
+      this.scene.fog.color.lerp(new THREE.Color("#4a525e"), 0.55);
+      this.renderer.toneMappingExposure = theme.exposure * 0.78;
+    }
     this.hemisphere.color.set(theme.ambient.sky);
     this.hemisphere.groundColor.set(theme.ambient.ground);
     this.hemisphere.intensity = theme.ambient.intensity;
     this.sun.color.set(theme.sun.color);
     this.sun.intensity = theme.sun.intensity;
     this.sun.position.copy(ARENA_CENTER).addScaledVector(sunDirection, 320);
-    this.renderer.toneMappingExposure = theme.exposure;
+    if (modifierId === "storm") {
+      this.sun.intensity *= 0.45;
+      this.sky.uniforms.top.value.lerp(new THREE.Color("#3a4250"), 0.6);
+      this.sky.uniforms.middle.value.lerp(new THREE.Color("#5a6470"), 0.6);
+      this.sky.uniforms.horizon.value.lerp(new THREE.Color("#7a828c"), 0.5);
+      this.sky.cloudMaterial.color.set("#5d6470");
+      this.sky.cloudMaterial.opacity = 0.95;
+    }
     this.buildingColors = Object.fromEntries(BUILDINGS.map((building) => [
       building.id,
       new THREE.Color(theme.buildings[building.type]),
@@ -159,11 +225,11 @@ export class Stage {
 
   syncWorld(state) {
     const theme = SKY_THEMES[state.theme] ?? SKY_THEMES.day;
-    const themeKey = `${state.theme}:${state.seed}`;
+    const themeKey = `${state.theme}:${state.seed}:${state.modifier}`;
     const themeChanged = themeKey !== this.themeKey;
     if (themeChanged) {
       this.themeKey = themeKey;
-      this.applyTheme(theme);
+      this.applyTheme(theme, ROUND_MODIFIERS[state.modifier] ? state.modifier : "normal");
     }
 
     const removed = this.world.sync(state.craters);
@@ -271,6 +337,7 @@ export class Stage {
     this.cloudOffset.x += (2 + state.wind.x * 9) * dt;
     this.cloudOffset.z += (1 + state.wind.z * 9) * dt;
     this.sky.update(this.camera.position, this.cloudOffset);
+    this.updateRain(dt, state.wind);
 
     this.renderer.render(this.scene, this.camera);
   }

@@ -91,6 +91,15 @@ export const WEAPONS = {
 };
 export const WEAPON_ORDER = ["standard", "cluster", "bounce", "heavy"];
 
+// Condicoes sorteadas a cada rodada (a primeira e sempre normal).
+export const ROUND_MODIFIERS = {
+  normal: { id: "normal", label: "Normal", weight: 4, description: "" },
+  storm: { id: "storm", label: "Tempestade", weight: 1.5, windScale: 2, description: "Vento em dobro e chuva" },
+  lowGravity: { id: "lowGravity", label: "Gravidade baixa", weight: 1.5, gravityScale: 0.6, description: "Tiros vão mais longe" },
+  fog: { id: "fog", label: "Neblina", weight: 1.5, hideWind: true, aiWindScale: 0.5, description: "Visão curta e vento escondido" },
+  arsenal: { id: "arsenal", label: "Arsenal", weight: 1.5, ammoScale: 2, description: "Munição especial em dobro" },
+};
+
 export const MAX_HP = 100;
 export const ROUNDS_TO_WIN = 3;
 export const EXPLOSION_RADIUS = 13;

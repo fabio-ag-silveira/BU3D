@@ -415,7 +415,10 @@ export class Effects {
         break;
       case "roundStart":
         this.reset();
-        overlay?.showBanner(`Rodada ${event.round}`, { duration: 1.6 });
+        overlay?.showBanner(`Rodada ${event.round}`, {
+          duration: event.label ? 2.4 : 1.6,
+          subtitle: event.label ? `${event.label}: ${event.description}` : "",
+        });
         break;
       case "roundEnd":
         overlay?.showBanner(event.label ? `${event.label} venceu a rodada!` : "Empate!", { color, duration: 2.5 });

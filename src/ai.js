@@ -1,5 +1,6 @@
 import {
   AI_PRESETS,
+  ROUND_MODIFIERS,
   ELEVATION_LIMITS,
   EXPLOSION_RADIUS,
   POWER_MAX_VELOCITY,
@@ -142,7 +143,8 @@ export function planAiShot(game) {
   const target = game.opponent;
   const world = game.world;
   const preset = AI_PRESETS[game.aiDifficulty];
-  const wind = { x: game.wind.x * preset.windKnowledge, z: game.wind.z * preset.windKnowledge };
+  const knowledge = preset.windKnowledge * (ROUND_MODIFIERS[game.modifier]?.aiWindScale ?? 1);
+  const wind = { x: game.wind.x * knowledge, z: game.wind.z * knowledge };
   const stateKey = buildStateKey(game, attacker, target);
   const previousMisses = game.aiMissMemory.get(stateKey) ?? [];
   const bearing = Math.round(bearingTo(attacker.position, target.position));

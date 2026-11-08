@@ -17,6 +17,7 @@ import {
   PHASE_DELAYS,
   PLAYER_DEFAULTS,
   PROJECTILE_SUBSTEP,
+  ROUND_MODIFIERS,
   ROUNDS_TO_WIN,
   SAFE_FALL,
   SKY_THEMES,
@@ -59,7 +60,22 @@ function pickSpawns() {
   return [first, randomItem(options.length ? options : PLAYER_DEFAULTS[1].spawns)];
 }
 
-function createPlayers() {
+function pickModifier(round) {
+  if (round === 0) {
+    return "normal";
+  }
+  const entries = Object.values(ROUND_MODIFIERS);
+  let roll = Math.random() * entries.reduce((sum, entry) => sum + entry.weight, 0);
+  for (const entry of entries) {
+    roll -= entry.weight;
+    if (roll <= 0) {
+      return entry.id;
+    }
+  }
+  return "normal";
+}
+
+function createPlayers(ammoScale = 1) {
   const spawns = pickSpawns();
   return PLAYER_DEFAULTS.map((template, index) => {
     const position = { ...spawns[index] };
@@ -77,7 +93,7 @@ function createPlayers() {
       lastPower: null,
       fall: null,
       weapon: "standard",
-      ammo: createAmmo(),
+      ammo: createAmmo(ammoScale),
     };
   });
 }
@@ -149,23 +165,31 @@ export class Game {
     this.turnIndex = this.round % 2;
     this.turnsInRound = 0;
     this.theme = randomItem(Object.keys(SKY_THEMES));
+    this.modifier = pickModifier(this.round);
+    const modifier = ROUND_MODIFIERS[this.modifier];
     this.seed = Math.floor(Math.random() * 2 ** 31);
     this.craters = [];
     this.world.reset();
     this.projectiles = [];
     this.turnReport = null;
-    this.gravity = GRAVITY;
+    this.gravity = GRAVITY * (modifier.gravityScale ?? 1);
     this.impact = null;
     this.charge = { active: false, power: 0, direction: 1 };
     this.wind = { x: 0, z: 0 };
     this.turnTimeMs = TURN_TIME_MS;
-    this.players = createPlayers();
+    this.players = createPlayers(modifier.ammoScale ?? 1);
     this.aiPlan = null;
     this.aiThinkMs = 0;
     this.aiMissMemory.clear();
     this.setPhase("roundStart", PHASE_DELAYS.roundStart);
     this.status = `Rodada ${this.round + 1}. Preparem-se!`;
-    this.emit("roundStart", { round: this.round + 1, theme: this.theme });
+    this.emit("roundStart", {
+      round: this.round + 1,
+      theme: this.theme,
+      modifier: this.modifier,
+      label: modifier.id === "normal" ? "" : modifier.label,
+      description: modifier.description,
+    });
   }
 
   setMode(mode) {
@@ -266,7 +290,8 @@ export class Game {
   beginTurn() {
     this.turnsInRound += 1;
     const growth = 0.5 + 0.5 * Math.min(1, this.turnsInRound / 6);
-    this.wind = randomWind(randomRange(0, WIND_MAX) * growth);
+    const windScale = ROUND_MODIFIERS[this.modifier].windScale ?? 1;
+    this.wind = randomWind(randomRange(0, WIND_MAX) * growth * windScale);
     this.turnTimeMs = TURN_TIME_MS;
     this.charge = { active: false, power: 0, direction: 1 };
     this.impact = null;
@@ -724,6 +749,7 @@ export class Game {
       matchWinner: this.matchWinner,
       status: this.status,
       theme: this.theme,
+      modifier: this.modifier,
       seed: this.seed,
       wind: { ...this.wind },
       turnTimeMs: this.turnTimeMs,

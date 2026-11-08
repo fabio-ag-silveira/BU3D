@@ -1626,3 +1626,31 @@ body.minimap-off .minimap {
     font-size: 0.62rem;
   }
 }
+
+/* Selo da condicao da rodada, abaixo do timer. */
+.modifier-chip {
+  margin-top: 3px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.modifier-chip[hidden] {
+  display: none;
+}
+
+.modifier-chip[data-modifier="storm"] { background: #475569; color: #e2e8f0; }
+.modifier-chip[data-modifier="lowGravity"] { background: #4c1d95; color: #ede9fe; }
+.modifier-chip[data-modifier="fog"] { background: #64748b; color: #f8fafc; }
+.modifier-chip[data-modifier="arsenal"] { background: #9a3412; color: #ffedd5; }
+
+@media (max-height: 500px) {
+  .modifier-chip {
+    margin-top: 0;
+    font-size: 0.55rem;
+  }
+}
