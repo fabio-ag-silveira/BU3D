@@ -941,3 +941,264 @@ canvas {
     order: -1;
   }
 }
+
+/* ---------- Celular / toque ---------- */
+
+.drawer-close,
+.touch-menu,
+.touch-camera,
+.touch-controls {
+  display: none;
+}
+
+.touch-btn,
+.touch-menu,
+.touch-camera {
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(10, 12, 18, 0.55);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  backdrop-filter: blur(6px);
+}
+
+.touch-btn.is-pressed {
+  background: rgba(255, 255, 255, 0.85);
+  color: #111;
+}
+
+body.has-touch .touch-controls {
+  display: block;
+}
+
+body.has-touch .touch-menu,
+body.has-touch .touch-camera {
+  display: block;
+}
+
+body.has-touch .camera-chip {
+  display: none;
+}
+
+.touch-menu {
+  position: absolute;
+  left: calc(10px + env(safe-area-inset-left));
+  bottom: calc(246px + env(safe-area-inset-bottom));
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  font-size: 1.2rem;
+}
+
+.touch-camera {
+  position: absolute;
+  left: calc(62px + env(safe-area-inset-left));
+  bottom: calc(246px + env(safe-area-inset-bottom));
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
+  font-size: 0.8rem;
+}
+
+.touch-pad {
+  position: absolute;
+  left: calc(10px + env(safe-area-inset-left));
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  width: 174px;
+  height: 174px;
+  display: grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  gap: 4px;
+}
+
+.touch-pad .touch-btn {
+  border-radius: 16px;
+  font-size: 1.3rem;
+}
+
+.pad-up { grid-area: 1 / 2; }
+.pad-left { grid-area: 2 / 1; }
+.pad-right { grid-area: 2 / 3; }
+.pad-down { grid-area: 3 / 2; }
+
+.touch-actions {
+  position: absolute;
+  right: calc(10px + env(safe-area-inset-right));
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 168px;
+}
+
+.touch-small {
+  height: 44px;
+  border-radius: 14px;
+  font-size: 0.8rem;
+}
+
+.touch-fire {
+  grid-column: 1 / -1;
+  height: 112px;
+  border-radius: 50%;
+  width: 112px;
+  justify-self: center;
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 120, 90, 0.85), rgba(170, 30, 30, 0.75));
+  border-color: rgba(255, 200, 180, 0.6);
+}
+
+.touch-fire.is-pressed {
+  background: radial-gradient(circle at 35% 30%, #ffe0a0, #ff8a3d);
+}
+
+/* Toque: tela cheia para o jogo e painel lateral como gaveta. */
+@media (pointer: coarse), (max-width: 980px) {
+  body.has-touch {
+    overflow: hidden;
+  }
+
+  body.has-touch .app-shell {
+    display: block;
+    height: 100dvh;
+    padding: 0;
+  }
+
+  body.has-touch .stage-shell {
+    height: 100dvh;
+    border-radius: 0;
+  }
+
+  body.has-touch .hud {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 20;
+    width: min(380px, 92vw);
+    padding: calc(12px + env(safe-area-inset-top)) 12px 12px calc(12px + env(safe-area-inset-left));
+    background: rgba(2, 3, 4, 0.94);
+    overflow-y: auto;
+    transform: translateX(-102%);
+    transition: transform 220ms ease;
+  }
+
+  body.has-touch .hud.is-open {
+    transform: translateX(0);
+  }
+
+  body.has-touch .drawer-close {
+    display: block;
+    align-self: stretch;
+    padding: 10px;
+  }
+
+  body.has-touch .stats-panel {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  body.has-touch .topbar {
+    top: calc(8px + env(safe-area-inset-top));
+    left: calc(8px + env(safe-area-inset-left));
+    right: calc(8px + env(safe-area-inset-right));
+    gap: 6px;
+  }
+
+  body.has-touch .tb-player {
+    padding: 6px 8px;
+    border-radius: 12px;
+  }
+
+  body.has-touch .tb-name {
+    font-size: 0.72rem;
+  }
+
+  body.has-touch .tb-center {
+    min-width: 0;
+    padding: 5px 10px 6px;
+    border-radius: 12px;
+  }
+
+  body.has-touch .tb-timer {
+    font-size: 1.2rem;
+  }
+
+  body.has-touch .tb-round {
+    font-size: 0.56rem;
+  }
+
+  body.has-touch .wind-dial {
+    width: 24px;
+    height: 24px;
+  }
+
+  body.has-touch .minimap {
+    top: calc(84px + env(safe-area-inset-top));
+    bottom: auto;
+    right: calc(8px + env(safe-area-inset-right));
+    width: 104px;
+    height: 104px;
+  }
+
+  body.has-touch .power-panel {
+    bottom: calc(196px + env(safe-area-inset-bottom));
+    width: min(300px, 55%);
+  }
+
+  body.has-touch .banner {
+    top: 26%;
+  }
+}
+
+/* Celular deitado: botoes mais compactos e barra de forca entre eles. */
+@media (pointer: coarse) and (max-height: 500px) {
+  body.has-touch .touch-pad {
+    width: 138px;
+    height: 138px;
+  }
+
+  body.has-touch .touch-actions {
+    width: 140px;
+  }
+
+  body.has-touch .touch-fire {
+    width: 84px;
+    height: 84px;
+  }
+
+  body.has-touch .touch-small {
+    height: 36px;
+  }
+
+  body.has-touch .touch-menu,
+  body.has-touch .touch-camera {
+    bottom: auto;
+    top: calc(82px + env(safe-area-inset-top));
+    height: 36px;
+  }
+
+  body.has-touch .touch-menu {
+    width: 36px;
+  }
+
+  body.has-touch .touch-camera {
+    left: calc(52px + env(safe-area-inset-left));
+  }
+
+  body.has-touch .power-panel {
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    width: min(300px, 40%);
+  }
+
+  body.has-touch .minimap {
+    top: calc(82px + env(safe-area-inset-top));
+    width: 84px;
+    height: 84px;
+  }
+}

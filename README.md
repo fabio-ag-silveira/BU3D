@@ -14,6 +14,16 @@ node server.js
 
 Depois abra `http://127.0.0.1:8000`. O mesmo servidor entrega o jogo e as salas do modo LAN. No Windows, dá para usar o `host-lan.bat`. Para parar, `Ctrl + C`.
 
+Versão publicada (Versus IA e Versus Local, também no celular): <https://batalha3d.fabiosilveira.dev>
+
+### Publicar no Cloudflare Workers
+
+```bash
+npm run deploy
+```
+
+O script `scripts/build-worker.mjs` gera `dist-worker/worker.js` com os arquivos do jogo embutidos e o `wrangler` publica no domínio configurado em `wrangler.jsonc`. Essa hospedagem é estática: o modo LAN fica desativado (com aviso) porque as salas dependem do `server.js`. Para uma pasta estática comum, `npm run build:web` gera `dist/`.
+
 ## Como jogar
 
 Cada jogador começa a rodada com 100 HP. Vence a rodada quem destruir o carrinho adversário, e a partida vai para quem vencer 3 rodadas.
@@ -23,6 +33,8 @@ Cada jogador começa a rodada com 100 HP. Vence a rodada quem destruir o carrinh
 | Player 1 | W/S | A/D | Q/E | segure F e solte |
 | Player 2 | I/K | J/L | U/O | segure H e solte |
 | Jogador da vez (vs IA / LAN) | ↑/↓ | ←/→ | `,`/`.` ou PgDn/PgUp | segure Espaço e solte |
+
+No celular/tablet aparecem botões na tela: direcional (▲▼ elevação, ◀▶ girar), Frente/Ré, um botão grande de Fogo (segure e solte), Câmera e ☰ para abrir o painel (modo, dificuldade, câmeras). Arrastar na tela gira a câmera livre.
 
 - **Força:** segurar o disparo enche a barra em vai-e-vem; soltar atira. A marca branca mostra a força do tiro anterior.
 - **Mira:** a linha pontilhada mostra o começo da trajetória (sem vento) com a força do último tiro, ou a força atual enquanto carrega.

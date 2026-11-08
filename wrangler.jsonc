@@ -1,0 +1,11 @@
+{
+  // Versao web (Versus IA e Versus Local). O modo LAN precisa do server.js.
+  // Gere o script com `npm run build:worker` antes do deploy (o `npm run deploy` ja faz isso).
+  "name": "batalha3d",
+  "main": "./dist-worker/worker.js",
+  "compatibility_date": "2025-09-01",
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "batalha3d.fabiosilveira.dev", "custom_domain": true }
+  ]
+}

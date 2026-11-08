@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build:web": "node scripts/build-web.mjs",
+    "build:worker": "node scripts/build-worker.mjs",
+    "deploy": "node scripts/build-worker.mjs && npx wrangler@4 deploy"
   }
 }

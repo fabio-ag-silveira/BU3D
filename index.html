@@ -2,7 +2,8 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#020304">
   <title>Batalha Urbana 3D</title>
   <link rel="stylesheet" href="./styles.css">
   <script type="importmap">
@@ -11,7 +12,8 @@
 </head>
 <body>
   <main class="app-shell">
-    <section class="hud">
+    <section class="hud" id="hudPanel">
+      <button type="button" class="hud-button drawer-close" id="drawerClose">Voltar ao jogo</button>
       <div class="hud-card">
         <p class="eyebrow">Estado da partida</p>
         <h1>Batalha Urbana <span class="title-3d">3D</span></h1>
@@ -151,6 +153,23 @@
 
         <p class="camera-chip"></p>
         <canvas class="minimap" aria-label="Minimapa"></canvas>
+
+        <button type="button" class="touch-menu" id="drawerOpen" aria-label="Menu">☰</button>
+        <button type="button" class="touch-camera" id="touchCamera">Câmera</button>
+
+        <div class="touch-controls" aria-hidden="true">
+          <div class="touch-pad">
+            <button type="button" class="touch-btn pad-up" data-touch="up" aria-label="Subir cano">▲</button>
+            <button type="button" class="touch-btn pad-left" data-touch="left" aria-label="Girar à esquerda">◀</button>
+            <button type="button" class="touch-btn pad-right" data-touch="right" aria-label="Girar à direita">▶</button>
+            <button type="button" class="touch-btn pad-down" data-touch="down" aria-label="Baixar cano">▼</button>
+          </div>
+          <div class="touch-actions">
+            <button type="button" class="touch-btn touch-small" data-touch="forward">Frente</button>
+            <button type="button" class="touch-btn touch-small" data-touch="back">Ré</button>
+            <button type="button" class="touch-btn touch-fire" data-touch="fire">Fogo</button>
+          </div>
+        </div>
 
         <div id="webglError" class="webgl-error" hidden>
           Seu navegador não conseguiu iniciar o WebGL. Ative a aceleração de hardware ou tente outro navegador.

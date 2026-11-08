@@ -104,6 +104,35 @@ const input = new InputController({
   },
 });
 input.attach(window);
+input.attachTouch(Array.from(document.querySelectorAll("[data-touch]")));
+
+// Celular: o painel lateral vira uma gaveta aberta pelo botao de menu.
+const hudPanel = document.getElementById("hudPanel");
+document.getElementById("drawerOpen").addEventListener("click", () => hudPanel.classList.add("is-open"));
+document.getElementById("drawerClose").addEventListener("click", () => hudPanel.classList.remove("is-open"));
+document.getElementById("touchCamera").addEventListener("click", (event) => {
+  stage.rig.cycle(1);
+  event.currentTarget.blur();
+});
+window.addEventListener("touchstart", () => document.body.classList.add("has-touch"), { once: true, passive: true });
+if (window.matchMedia?.("(pointer: coarse)").matches) {
+  document.body.classList.add("has-touch");
+}
+
+// Hospedagem estatica (ex.: Cloudflare Workers) nao tem o servidor das salas LAN.
+fetch("/api/rooms", { cache: "no-store" })
+  .then((response) => {
+    if (!response.ok || !(response.headers.get("content-type") ?? "").includes("json")) {
+      throw new Error("sem servidor");
+    }
+  })
+  .catch(() => {
+    document.body.classList.add("no-lan");
+    [ui.createRoomButton, ui.refreshRoomsButton, ui.leaveRoomButton,
+      ...ui.modeButtons.filter((button) => button.dataset.mode === GAME_MODES.lan)]
+      .forEach((button) => { button.disabled = true; });
+    ui.connectionStatus.textContent = "LAN indisponível nesta hospedagem. Para jogar em rede, rode node server.js no seu PC.";
+  });
 window.addEventListener("pointerdown", () => sound.unlock());
 
 ui.modeButtons.forEach((button) => {
