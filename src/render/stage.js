@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { CRATES, ROUND_MODIFIERS, SKY_THEMES, WEAPONS } from "../config.js";
-import { getMuzzle, getLaunchVelocity, powerToVelocity, projectileAt } from "../physics.js";
+import { getMuzzle, getLaunchVelocity, isInsideTankHitbox, isOutOfBounds, powerToVelocity, projectileAt } from "../physics.js";
 import { VoxelWorld, cellCoords, cellCenter } from "../world.js";
 import { getLayout, MATERIALS } from "../map.js";
 import { Sky, ARENA_CENTER } from "./sky.js";
@@ -11,7 +11,14 @@ import { Effects } from "./effects.js";
 import { CameraRig } from "./camera.js";
 import { Replay } from "./replay.js";
 
-const GUIDE_POINTS = 26;
+const GUIDE_POINTS = 400;
+const GUIDE_STEP = 0.05;
+// Ajuda de mira: quanto da trajetoria (sem vento) aparece.
+export const AIM_ASSIST = {
+  short: { id: "short", label: "Curta" },
+  long: { id: "long", label: "Longa" },
+  full: { id: "full", label: "Completa" },
+};
 const NO_WIND = { x: 0, z: 0 };
 
 // Cena 3D: monta ceu, cidade de voxels, carrinhos, projetil, guia de mira, efeitos e cameras.
@@ -65,6 +72,7 @@ export class Stage {
     this.crateStripe = new THREE.BoxGeometry(3.1, 0.6, 3.1).translate(0, 1.5, 0);
     this.canopyGeometry = new THREE.SphereGeometry(4, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
     this.createGuide();
+    this.createAimMarkers();
     this.resize();
   }
 
@@ -384,21 +392,74 @@ export class Stage {
     });
   }
 
-  updateGuide(state) {
+  // Marcadores da mira: onde o tiro vai cair (ajuda Completa) e onde caiu o tiro anterior.
+  createAimMarkers() {
+    const overlayMaterial = (color, opacity) => new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity, depthTest: false, depthWrite: false, toneMapped: false, side: THREE.DoubleSide,
+    });
+    this.landing = new THREE.Group();
+    const ring = new THREE.Mesh(new THREE.RingGeometry(2.2, 3, 40).rotateX(-Math.PI / 2), overlayMaterial("#ffffff", 0.9));
+    const dot = new THREE.Mesh(new THREE.CircleGeometry(0.7, 16).rotateX(-Math.PI / 2), overlayMaterial("#ffffff", 0.9));
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 7, 6).translate(0, 3.5, 0), overlayMaterial("#ffffff", 0.5));
+    this.landing.add(ring, dot, post);
+    this.landing.renderOrder = 20;
+    this.landing.children.forEach((child) => { child.renderOrder = 20; });
+    this.landing.visible = false;
+    this.scene.add(this.landing);
+
+    this.lastMarker = new THREE.Group();
+    const bar = new THREE.BoxGeometry(5, 0.3, 0.9);
+    const crossA = new THREE.Mesh(bar, overlayMaterial("#ffffff", 0.75));
+    crossA.rotation.y = Math.PI / 4;
+    const crossB = new THREE.Mesh(bar, crossA.material);
+    crossB.rotation.y = -Math.PI / 4;
+    const lastRing = new THREE.Mesh(new THREE.RingGeometry(3.2, 3.7, 40).rotateX(-Math.PI / 2), overlayMaterial("#ffffff", 0.45));
+    this.lastMarker.add(crossA, crossB, lastRing);
+    this.lastMarker.children.forEach((child) => { child.renderOrder = 19; });
+    this.lastMarker.visible = false;
+    this.scene.add(this.lastMarker);
+  }
+
+  setMarkerColor(group, color) {
+    group.children.forEach((child) => child.material.color.set(color));
+  }
+
+  updateGuide(state, time) {
     const player = state.players[state.turnIndex];
     const visible = state.phase === "aiming" && !player.falling;
     this.guide.visible = visible;
+    this.landing.visible = false;
+    this.guideInfo = null;
+    this.lastMarker.visible = visible && Boolean(player.lastImpact);
+    if (this.lastMarker.visible) {
+      this.lastMarker.position.set(player.lastImpact.x, player.lastImpact.y + 0.3, player.lastImpact.z);
+      this.setMarkerColor(this.lastMarker, player.color);
+    }
     if (!visible) {
       return;
     }
+
+    // Traca a trajetoria (sem vento) ate bater em algo; a ajuda escolhida decide quanto mostrar.
     const power = state.charge.active ? state.charge.power : player.lastPower ?? 0.5;
     const origin = getMuzzle(player.position, player.yaw, player.elevation);
     const velocity = getLaunchVelocity(player.yaw, player.elevation, powerToVelocity(power));
     const gravity = state.gravity;
     let count = 0;
+    let impact = null;
+    let onTarget = false;
+    let targetId = null;
     for (let index = 0; index < GUIDE_POINTS; index += 1) {
-      const point = projectileAt(origin, velocity, NO_WIND, index * 0.05 + 0.02, gravity);
-      if (this.world.isSolid(point)) {
+      const elapsed = index * GUIDE_STEP + 0.02;
+      const point = projectileAt(origin, velocity, NO_WIND, elapsed, gravity);
+      const hitTank = state.players.find((entry) =>
+        entry.hp > 0 && (entry.id !== player.id || elapsed > 0.5) && isInsideTankHitbox(point, entry));
+      if (hitTank || this.world.isSolid(point)) {
+        impact = point;
+        onTarget = Boolean(hitTank && hitTank.id !== player.id);
+        targetId = onTarget ? hitTank.id : null;
+        break;
+      }
+      if (isOutOfBounds(point)) {
         break;
       }
       this.guidePositions[index * 3] = point.x;
@@ -406,9 +467,21 @@ export class Stage {
       this.guidePositions[index * 3 + 2] = point.z;
       count += 1;
     }
-    this.guide.geometry.setDrawRange(0, count);
+    const mode = this.aimAssist ?? AIM_ASSIST.long.id;
+    const shown = mode === "full" ? count : mode === "long" ? Math.max(26, Math.ceil(count * 0.55)) : 26;
+    this.guide.geometry.setDrawRange(0, Math.min(count, shown));
     this.guide.geometry.attributes.position.needsUpdate = true;
     this.guide.material.color.set(state.charge.active ? "#ffffff" : player.color);
+
+    if (mode === "full" && impact) {
+      this.landing.visible = true;
+      this.landing.position.set(impact.x, impact.y + 0.2, impact.z);
+      this.setMarkerColor(this.landing, onTarget ? "#ff4a4a" : state.charge.active ? "#ffffff" : player.color);
+      const pulse = onTarget ? 1 + 0.25 * Math.sin(time * 10) : 1;
+      const far = Math.max(1, this.camera.position.distanceTo(this.landing.position) / 45);
+      this.landing.scale.setScalar(pulse * far);
+    }
+    this.guideInfo = { onTarget, impact, targetId: mode === "full" ? targetId : null };
   }
 
   createCrateMesh(crate) {
@@ -533,7 +606,7 @@ export class Stage {
     this.resize();
     this.syncWorld(state);
     this.updateTanks(state, dt, time);
-    this.updateGuide(state);
+    this.updateGuide(state, time);
     const focus = this.updateProjectiles(state);
     this.updateCrates(state, time);
     this.updateChunks(dt);
@@ -550,6 +623,38 @@ export class Stage {
     this.updateRain(dt, state.wind);
 
     this.renderer.render(this.scene, this.camera);
+  }
+
+  // Posicao na tela, ou o ponto na borda (com angulo da seta) se estiver fora de vista ou atras da camera.
+  projectEdge(point, margin = 40, top = 130, bottom = 120) {
+    const view = new THREE.Vector3(point.x, point.y, point.z).applyMatrix4(this.camera.matrixWorldInverse);
+    const ndc = new THREE.Vector3(point.x, point.y, point.z).project(this.camera);
+    const inFront = view.z < 0;
+    const onScreen = inFront && Math.abs(ndc.x) <= 1 && Math.abs(ndc.y) <= 1;
+    if (onScreen) {
+      return { x: (ndc.x * 0.5 + 0.5) * this.width, y: (-ndc.y * 0.5 + 0.5) * this.height, onScreen: true };
+    }
+    let dx = inFront ? ndc.x : -view.x;
+    let dy = inFront ? -ndc.y : view.y;
+    if (!inFront) {
+      dy = Math.abs(dy) < 0.2 ? 0.6 : dy;
+    }
+    const length = Math.hypot(dx, dy) || 1;
+    dx /= length;
+    dy /= length;
+    // Area livre entre o placar do topo e a barra de forca.
+    const minY = Math.min(top, this.height * 0.3);
+    const maxY = this.height - Math.min(bottom, this.height * 0.3);
+    const centerY = (minY + maxY) / 2;
+    const halfW = this.width / 2 - margin;
+    const halfH = (maxY - minY) / 2;
+    const scale = Math.min(halfW / Math.max(1e-6, Math.abs(dx)), halfH / Math.max(1e-6, Math.abs(dy)));
+    return {
+      x: this.width / 2 + dx * scale,
+      y: centerY + dy * scale,
+      onScreen: false,
+      angle: (Math.atan2(dy, dx) * 180) / Math.PI,
+    };
   }
 
   // Converte um ponto do mundo para pixels do canvas (null se estiver atras da camera).

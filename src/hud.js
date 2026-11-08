@@ -52,7 +52,7 @@ export class Hud {
     apply(value);
   }
 
-  render(state, { mode, aiDifficulty, soundEnabled, minimapEnabled, cameraMode, mapKind }) {
+  render(state, { mode, aiDifficulty, soundEnabled, minimapEnabled, cameraMode, mapKind, aimAssist }) {
     const { ui } = this;
     const current = state.players[state.turnIndex];
     const winner = state.players.find((player) => player.id === state.matchWinner);
@@ -95,6 +95,9 @@ export class Hud {
     this.write("players", (value) => {
       ui.playerCountButtons.forEach((button) => setPressed(button, button.dataset.players === value));
     }, String(state.players.length));
+    this.write("assist", (value) => {
+      ui.assistButtons.forEach((button) => setPressed(button, button.dataset.assist === value));
+    }, aimAssist);
     this.write("map", (value) => {
       ui.mapButtons.forEach((button) => setPressed(button, button.dataset.map === value));
     }, mapKind);

@@ -71,6 +71,14 @@
           </div>
         </div>
         <div class="field">
+          <span class="field-label">Ajuda de mira</span>
+          <div class="segmented" id="aimAssistButtons" role="group" aria-label="Ajuda de mira">
+            <button type="button" data-assist="short">Curta</button>
+            <button type="button" data-assist="long">Longa</button>
+            <button type="button" data-assist="full">Completa</button>
+          </div>
+        </div>
+        <div class="field">
           <span class="field-label">Câmera</span>
           <div class="segmented segmented-wrap" id="cameraButtons" role="group" aria-label="Câmera">
             <button type="button" data-camera="chase">Perseguição</button>
@@ -103,6 +111,7 @@
               <tr><th>Ré/frente</th><td><kbd>Q</kbd><kbd>E</kbd></td><td><kbd>U</kbd><kbd>O</kbd></td><td><kbd>,</kbd><kbd>.</kbd></td></tr>
               <tr><th>Atirar</th><td><kbd>F</kbd></td><td><kbd>H</kbd></td><td><kbd>Espaço</kbd></td></tr>
               <tr><th>Arma</th><td><kbd>R</kbd></td><td><kbd>P</kbd></td><td><kbd>Tab</kbd></td></tr>
+              <tr><th>Mirar no inimigo</th><td><kbd>T</kbd></td><td><kbd>T</kbd></td><td><kbd>T</kbd></td></tr>
             </tbody>
           </table>
           <p class="key-note">Segure o tiro para carregar a força e solte para disparar. Arraste na tela para girar a câmera e use a roda do mouse para zoom.</p>
@@ -140,10 +149,13 @@
           <div class="banner"></div>
           <div class="float-layer"></div>
 
+          <div class="target-layer"></div>
+          <p class="aim-feedback" hidden></p>
           <div class="power-panel">
             <span class="weapon-chip"></span>
             <div class="power-bar"><span class="power-fill"></span><span class="power-marker"></span></div>
             <p class="aim-readout"></p>
+            <p class="aim-target"></p>
           </div>
 
           <p class="camera-chip"></p>
@@ -168,6 +180,7 @@
         <div class="touch-group">
           <button type="button" class="touch-button" data-control="left" aria-label="Girar para a esquerda"><svg class="touch-icon is-left" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg></button>
           <button type="button" class="touch-button" data-control="right" aria-label="Girar para a direita"><svg class="touch-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg></button>
+          <button type="button" class="touch-button touch-text touch-target" data-control="target" aria-label="Mirar no inimigo">ALVO</button>
           <button type="button" class="touch-button touch-text" data-control="back" aria-label="Andar de ré">RÉ</button>
           <button type="button" class="touch-button touch-text" data-control="forward" aria-label="Andar para frente">FRENTE</button>
         </div>

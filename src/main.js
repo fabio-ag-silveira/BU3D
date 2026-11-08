@@ -7,6 +7,7 @@ import { StageOverlay } from "./overlay.js";
 import { Stage } from "./render/stage.js";
 
 const MINIMAP_KEY = "bu3d_minimap";
+const ASSIST_KEY = "bu3d_aim_assist";
 
 const ui = {
   roundLabel: document.getElementById("roundLabel"),
@@ -18,6 +19,7 @@ const ui = {
   difficultyButtons: Array.from(document.querySelectorAll("[data-difficulty]")),
   cameraButtons: Array.from(document.querySelectorAll("[data-camera]")),
   mapButtons: Array.from(document.querySelectorAll("[data-map]")),
+  assistButtons: Array.from(document.querySelectorAll("[data-assist]")),
   soundButton: document.getElementById("soundButton"),
   minimapButton: document.getElementById("minimapButton"),
   resetButton: document.getElementById("resetButton"),
@@ -60,6 +62,22 @@ function setMinimap(enabled) {
   }
 }
 setMinimap(minimapEnabled);
+
+function setAimAssist(mode) {
+  stage.aimAssist = ["short", "long", "full"].includes(mode) ? mode : "long";
+  try {
+    window.localStorage.setItem(ASSIST_KEY, stage.aimAssist);
+  } catch {
+    // preferencia so vale para a sessao
+  }
+}
+let savedAssist = null;
+try {
+  savedAssist = window.localStorage.getItem(ASSIST_KEY);
+} catch {
+  // sem armazenamento
+}
+setAimAssist(savedAssist ?? "long");
 
 function resetMatch() {
   game.resetGame();
@@ -118,6 +136,13 @@ ui.difficultyButtons.forEach((button) => {
 ui.playerCountButtons.forEach((button) => {
   button.addEventListener("click", () => {
     game.setPlayerCount(Number(button.dataset.players));
+    button.blur();
+  });
+});
+
+ui.assistButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    setAimAssist(button.dataset.assist);
     button.blur();
   });
 });
@@ -254,6 +279,7 @@ function frame(timestamp) {
     minimapEnabled,
     cameraMode: stage.rig.mode,
     mapKind: game.mapKind,
+    aimAssist: stage.aimAssist,
   });
 
   window.requestAnimationFrame(frame);

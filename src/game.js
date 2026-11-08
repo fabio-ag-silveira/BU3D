@@ -55,7 +55,7 @@ import { VoxelWorld } from "./world.js";
 import { getLayout, MAP_KINDS } from "./map.js";
 import { planAiShot } from "./ai.js";
 
-export const CONTROLS = ["up", "down", "left", "right", "forward", "back", "fire", "weapon"];
+export const CONTROLS = ["up", "down", "left", "right", "forward", "back", "fire", "weapon", "target"];
 const MAX_EVENTS = 40;
 
 function createInputState() {
@@ -141,6 +141,10 @@ function createPlayers(layout, world, count, ammoScale = 1) {
       hp: MAX_HP,
       fuel: FUEL_PER_TURN,
       lastPower: null,
+      lastImpact: null,
+      feedback: null,
+      lockedTargetId: null,
+      autoYaw: null,
       fall: null,
       weapon: "standard",
       ammo: createAmmo(ammoScale),
@@ -325,6 +329,9 @@ export class Game {
     if (control === "weapon" && pressed && !wasPressed && isTurnOwner && !this.charge.active) {
       this.cycleWeapon(this.currentPlayer);
     }
+    if (control === "target" && pressed && !wasPressed && isTurnOwner && !this.charge.active) {
+      this.faceNextTarget(this.currentPlayer);
+    }
     if (control === "fire" && pressed !== wasPressed && isTurnOwner) {
       if (pressed) {
         this.startCharge();
@@ -422,7 +429,16 @@ export class Game {
       }
       const turn = (input.left ? 1 : 0) - (input.right ? 1 : 0);
       if (turn && !this.charge.active) {
+        player.autoYaw = null;
         this.rotateCart(player, turn * YAW_SPEED * seconds);
+      } else if (player.autoYaw !== null) {
+        // "Mirar no inimigo": gira sozinho ate ficar de frente para o alvo.
+        const difference = wrapDegrees(player.autoYaw - player.yaw);
+        const step = YAW_SPEED * 2 * seconds;
+        this.rotateCart(player, clamp(difference, -step, step));
+        if (Math.abs(difference) <= step) {
+          player.autoYaw = null;
+        }
       }
       const move = (input.forward ? 1 : 0) - (input.back ? 1 : 0);
       if (move && !this.charge.active) {
@@ -498,6 +514,23 @@ export class Game {
 
   startCharge() {
     this.charge = { active: true, power: 0, direction: 1 };
+  }
+
+  // Gira para o inimigo vivo mais proximo; apertar de novo passa para o proximo.
+  faceNextTarget(player) {
+    const enemies = this.players
+      .filter((entry) => entry !== player && entry.hp > 0)
+      .sort((a, b) => distance3d(a.position, player.position) - distance3d(b.position, player.position));
+    if (!enemies.length) {
+      return;
+    }
+    const current = enemies.findIndex((entry) => entry.id === player.lockedTargetId);
+    const facing = current >= 0 &&
+      Math.abs(wrapDegrees(bearingTo(player.position, enemies[current].position) - player.yaw)) < 3;
+    const target = enemies[facing ? (current + 1) % enemies.length : Math.max(0, current)];
+    player.lockedTargetId = target.id;
+    player.autoYaw = wrapDegrees(bearingTo(player.position, target.position));
+    this.emit("target", { playerId: player.id, targetId: target.id, label: target.label });
   }
 
   cycleWeapon(player) {
@@ -680,6 +713,9 @@ export class Game {
     });
     this.impact = { x: point.x, y: point.y, z: point.z };
     report.explosions += 1;
+    if (!report.firstImpact) {
+      report.firstImpact = { x: point.x, y: point.y, z: point.z };
+    }
     this.destroyCrates(point, weapon.radius);
     this.emit("explosion", {
       ...this.impact, radius: weapon.radius, weapon: weapon.id, playerId: attacker.id, craterId: crater.id,
@@ -708,9 +744,49 @@ export class Game {
     });
   }
 
+  // Onde o tiro caiu em relacao ao alvo, no referencial de quem atirou (curto/longo, esquerda/direita).
+  buildShotFeedback(attacker, report) {
+    const impact = report.firstImpact;
+    if (!impact) {
+      return { text: "Último tiro saiu do mapa.", impact: null };
+    }
+    const enemies = this.players.filter((player) => player !== attacker);
+    const target = enemies.find((player) => player.id === attacker.lockedTargetId && player.hp > 0) ??
+      enemies.sort((a, b) => distance3d(a.position, impact) - distance3d(b.position, impact))[0];
+    if (!target) {
+      return { text: "", impact };
+    }
+    if (report.direct === target.label) {
+      return { text: `Acerto direto em ${target.label}!`, impact, targetId: target.id };
+    }
+    const dx = target.position.x - attacker.position.x;
+    const dz = target.position.z - attacker.position.z;
+    const length = Math.hypot(dx, dz) || 1;
+    const forward = { x: dx / length, z: dz / length };
+    const right = { x: -forward.z, z: forward.x };
+    const delta = { x: impact.x - target.position.x, z: impact.z - target.position.z };
+    const along = delta.x * forward.x + delta.z * forward.z;
+    const side = delta.x * right.x + delta.z * right.z;
+    const parts = [];
+    if (Math.abs(along) >= 2) {
+      parts.push(`${Math.round(Math.abs(along))} m ${along < 0 ? "antes" : "depois"}`);
+    }
+    if (Math.abs(side) >= 2) {
+      parts.push(`${Math.round(Math.abs(side))} m à ${side > 0 ? "direita" : "esquerda"}`);
+    }
+    const text = parts.length
+      ? `Último tiro: ${parts.join(" e ")} de ${target.label}`
+      : `Último tiro: em cima de ${target.label}!`;
+    return { text, impact, targetId: target.id, along, side };
+  }
+
   finishShot() {
     const report = this.turnReport;
     const attacker = this.players.find((player) => player.id === report.attackerId);
+    const feedback = this.buildShotFeedback(attacker, report);
+    attacker.lastImpact = feedback.impact;
+    attacker.feedback = feedback.text;
+    this.emit("shotFeedback", { playerId: attacker.id, text: feedback.text, impact: feedback.impact });
     if (!report.explosions) {
       this.status = "O tiro saiu do mapa.";
       this.emit("miss", { playerId: attacker.id });
@@ -1090,6 +1166,9 @@ export class Game {
         hp: player.hp,
         fuel: player.fuel,
         lastPower: player.lastPower,
+        lastImpact: player.lastImpact ? { ...player.lastImpact } : null,
+        feedback: player.feedback,
+        lockedTargetId: player.lockedTargetId,
         falling: Boolean(player.fall),
         pushed: Boolean(player.push),
         weapon: player.weapon,

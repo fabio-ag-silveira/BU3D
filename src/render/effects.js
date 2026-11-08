@@ -345,6 +345,12 @@ export class Effects {
         sound?.shot(event.power);
         break;
       }
+      case "shotFeedback":
+        overlay?.showShotFeedback(event.text);
+        break;
+      case "target":
+        sound?.tick(false);
+        break;
       case "offmap":
         this.ghosts.push({
           ...event,

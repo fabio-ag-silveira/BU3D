@@ -17,6 +17,7 @@ const KEY_BINDINGS = {
   h: { player: 2, control: "fire" },
   p: { player: 2, control: "weapon" },
   tab: { player: "current", control: "weapon" },
+  t: { player: "current", control: "target" },
   arrowup: { player: "current", control: "up" },
   arrowdown: { player: "current", control: "down" },
   arrowleft: { player: "current", control: "left" },

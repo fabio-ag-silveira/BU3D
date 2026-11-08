@@ -123,20 +123,25 @@ export class CameraRig {
   }
 
   // Coloca a camera atras do carrinho, olhando na direcao da mira.
-  chasePose(player) {
+  chasePose(player, enemy) {
     const forward = forwardVector(player.yaw);
     const aim = aimDirection(player.yaw, Math.min(player.elevation, 40));
     // Tela estreita (celular em pe): afasta a camera para o carrinho nao tomar a tela toda.
     const spread = clamp(1.15 / this.camera.aspect, 1, 1.8);
+    // Alvo longe: a camera sobe e olha mais adiante, para o fim do arco caber na tela.
+    const reach = enemy
+      ? clamp(Math.hypot(enemy.position.x - player.position.x, enemy.position.z - player.position.z) * 0.6, 26, 110)
+      : 26;
+    const lookY = player.position.y + 2 + (enemy ? (enemy.position.y - player.position.y) * 0.3 : 0);
     this.desiredPosition.set(
       player.position.x - forward.x * 28 * spread,
-      player.position.y + 11.5 * spread,
+      player.position.y + (11.5 + (reach - 26) * 0.16) * spread,
       player.position.z - forward.z * 28 * spread,
     );
     this.desiredTarget.set(
-      player.position.x + aim.x * 26,
-      player.position.y + 2 + aim.y * 9,
-      player.position.z + aim.z * 26,
+      player.position.x + aim.x * reach,
+      lookY + aim.y * 6,
+      player.position.z + aim.z * reach,
     );
   }
 
@@ -278,7 +283,8 @@ export class CameraRig {
           targetRate = 3;
         } else {
           if (follow) {
-            this.chasePose(current);
+            const locked = state.players.find((player) => player.id === current.lockedTargetId && player.hp > 0);
+            this.chasePose(current, locked ?? opponent);
           } else {
             this.tacticalPose(current, opponent);
             rate = 2.6;

@@ -28,6 +28,9 @@ export class StageOverlay {
       powerMarker: root.querySelector(".power-marker"),
       readout: root.querySelector(".aim-readout"),
       weapon: root.querySelector(".weapon-chip"),
+      targetInfo: root.querySelector(".aim-target"),
+      feedback: root.querySelector(".aim-feedback"),
+      targetLayer: root.querySelector(".target-layer"),
       camera: root.querySelector(".camera-chip"),
       banner: root.querySelector(".banner"),
       floatLayer: root.querySelector(".float-layer"),
@@ -38,6 +41,89 @@ export class StageOverlay {
     this.bannerTimer = null;
     this.mapBase = document.createElement("canvas");
     this.mapVersion = -1;
+    this.labels = new Map();
+    this.flashFeedback = null;
+  }
+
+  // Retorno logo depois do tiro (fica alguns segundos na tela).
+  showShotFeedback(text) {
+    if (text) {
+      this.flashFeedback = { text, life: 3 };
+    }
+  }
+
+  // Etiqueta sobre cada inimigo: nome e distancia; presa na borda com seta quando fora de vista.
+  updateTargetLabels(state, stage) {
+    const current = state.players[state.turnIndex];
+    const showing = state.phase === "aiming" || state.phase === "flying" || state.phase === "settling";
+    const alive = new Set();
+    state.players.forEach((player) => {
+      if (player.id === current.id || player.hp <= 0 || !showing) {
+        return;
+      }
+      alive.add(player.id);
+      let label = this.labels.get(player.id);
+      if (!label) {
+        label = document.createElement("div");
+        label.className = "target-label";
+        label.innerHTML = '<span class="target-arrow"></span><span class="target-text"></span>';
+        this.el.targetLayer.appendChild(label);
+        this.labels.set(player.id, label);
+      }
+      const distance = Math.round(Math.hypot(
+        player.position.x - current.position.x,
+        player.position.y - current.position.y,
+        player.position.z - current.position.z,
+      ));
+      const locked = current.lockedTargetId === player.id;
+      const inSights = state.phase === "aiming" && stage.guideInfo?.targetId === player.id;
+      label.style.setProperty("--team", player.color);
+      label.classList.toggle("is-locked", locked);
+      label.classList.toggle("is-sighted", inSights);
+      label.querySelector(".target-text").textContent = `${player.label} · ${distance} m${inSights ? " · NA MIRA" : ""}`;
+      const screen = stage.projectEdge({ x: player.position.x, y: player.position.y + 8, z: player.position.z }, 46);
+      label.classList.toggle("is-edge", !screen.onScreen);
+      label.style.transform = `translate(${screen.x}px, ${screen.y}px) translate(-50%, -50%)`;
+      label.querySelector(".target-arrow").style.transform = screen.onScreen ? "" : `rotate(${screen.angle}deg)`;
+    });
+    this.labels.forEach((label, id) => {
+      if (!alive.has(id)) {
+        label.remove();
+        this.labels.delete(id);
+      }
+    });
+  }
+
+  updateAimInfo(state, dt) {
+    const current = state.players[state.turnIndex];
+    if (this.flashFeedback) {
+      this.flashFeedback.life -= dt;
+      if (this.flashFeedback.life <= 0) {
+        this.flashFeedback = null;
+      }
+    }
+    const feedback = this.flashFeedback?.text ?? (state.phase === "aiming" ? current.feedback : null);
+    this.write("feedback", feedback ?? "", (value) => {
+      this.el.feedback.textContent = value;
+      this.el.feedback.hidden = !value;
+    });
+
+    let info = "";
+    if (state.phase === "aiming") {
+      const enemies = state.players.filter((player) => player !== current && player.hp > 0);
+      const target = enemies.find((player) => player.id === current.lockedTargetId) ??
+        enemies.sort((a, b) => Math.hypot(a.position.x - current.position.x, a.position.z - current.position.z) -
+          Math.hypot(b.position.x - current.position.x, b.position.z - current.position.z))[0];
+      if (target) {
+        const distance = Math.round(Math.hypot(target.position.x - current.position.x, target.position.z - current.position.z));
+        const height = Math.round(target.position.y - current.position.y);
+        const relative = height > 1 ? ` · ${height} m acima` : height < -1 ? ` · ${-height} m abaixo` : " · mesma altura";
+        info = `Alvo: ${target.label} · ${distance} m${relative}`;
+      }
+    }
+    this.write("targetInfo", info, (value) => {
+      this.el.targetInfo.textContent = value;
+    });
   }
 
   write(key, value, apply) {
@@ -205,6 +291,8 @@ export class StageOverlay {
     });
 
     this.updateFloating(dt, stage);
+    this.updateTargetLabels(state, stage);
+    this.updateAimInfo(state, dt);
     if (minimapEnabled) {
       this.drawMinimap(state, stage);
     }
@@ -296,6 +384,19 @@ export class StageOverlay {
 
     const corner = toMap({ x: ARENA.maxX, z: ARENA.maxZ });
     context.drawImage(this.mapBase, corner.x, corner.y, MAP_WIDTH * scale, MAP_DEPTH * scale);
+
+    const shooter = state.players[state.turnIndex];
+    if (state.phase === "aiming" && shooter.lastImpact) {
+      const mark = toMap(shooter.lastImpact);
+      context.strokeStyle = shooter.color;
+      context.lineWidth = 2 * ratio;
+      context.beginPath();
+      context.moveTo(mark.x - 4 * ratio, mark.y - 4 * ratio);
+      context.lineTo(mark.x + 4 * ratio, mark.y + 4 * ratio);
+      context.moveTo(mark.x + 4 * ratio, mark.y - 4 * ratio);
+      context.lineTo(mark.x - 4 * ratio, mark.y + 4 * ratio);
+      context.stroke();
+    }
 
     if (state.impact && state.phase !== "aiming") {
       const impact = toMap(state.impact);

@@ -37,7 +37,9 @@ Cada jogador começa a rodada com 100 HP. Vence a rodada quem sobrar de pé, e a
 No celular/tablet aparece uma barra de botões embaixo da tela, como na versão 2D: girar, ré, frente, câmera, arma, elevação do cano e Atirar (segure e solte). O botão de menu abre o painel em gaveta e o do canto direito põe em tela cheia. Em pé, o jogo sugere girar o celular. Arrastar na tela gira a câmera livre.
 
 - **Força:** segurar o disparo enche a barra em vai-e-vem; soltar atira. A marca branca mostra a força do tiro anterior.
-- **Mira:** a linha pontilhada mostra o começo da trajetória (sem vento) com a força do último tiro, ou a força atual enquanto carrega.
+- **Mira:** a linha pontilhada mostra a trajetória (sem vento) com a força do último tiro, ou a força atual enquanto carrega. A **Ajuda de mira** no painel escolhe quanto aparece: Curta (só o começo), Longa (padrão, mais da metade) ou Completa (o arco inteiro e um marcador onde vai cair; a etiqueta do inimigo avisa "NA MIRA").
+- **Mirar no inimigo:** `T` ou o botão ALVO gira o carrinho para o inimigo mais próximo; apertar de novo passa para o próximo. Etiquetas mostram nome e distância de cada inimigo (através dos prédios), com seta na borda da tela quando ele está fora de vista.
+- **Retorno do tiro:** um X marca onde caiu o seu último tiro, e um aviso diz quanto faltou ("18 m antes e 6 m à esquerda de Player 2"). Abaixo da barra de força aparecem a distância e a diferença de altura até o alvo.
 - **Armas:** Canhão (infinito), Fragmentação (abre em 4 no alto da trajetória), Quicante (ricocheteia 2 vezes na face do voxel atingido) e Pesado (explosão e cratera enormes). As especiais têm munição por rodada.
 - **Vento:** muda a cada turno e sopra em qualquer direção do plano. A bússola no topo mostra o vento *relativo à câmera* (seta para cima = vento para onde você está olhando).
 - **Explosões:** dano em área (acerto direto dá bônus), inclusive em quem atirou, e empurram o carrinho — dá para derrubar alguém do telhado.
