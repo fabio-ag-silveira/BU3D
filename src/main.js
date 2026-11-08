@@ -73,9 +73,18 @@ const input = new InputController({
     return binding.player === "current" ? game.currentPlayer.id : binding.player;
   },
   dispatch(target, control, pressed, options) {
+    // Atirar durante o replay so pula o replay.
+    if (pressed && control === "fire" && stage.replay.active) {
+      stage.replay.stop();
+      return;
+    }
     game.setInput(target, control, pressed, options);
   },
   onShortcut(key, event) {
+    if (stage.replay.active && key !== "b") {
+      stage.replay.stop();
+      return;
+    }
     if (key === "b") {
       resetMatch();
     } else if (key === "x") {
@@ -194,7 +203,7 @@ let lastTickSecond = null;
 function consumeEvents(state) {
   state.events.forEach((event) => {
     if (event.id > lastEventId) {
-      stage.handleEvent(event, state, { sound, overlay });
+      stage.handleEvent(event, state, { sound, overlay }, performance.now() / 1000);
       lastEventId = event.id;
       if (event.type === "explosion" && document.body.classList.contains("touch")) {
         navigator.vibrate?.(35);

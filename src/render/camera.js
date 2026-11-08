@@ -31,6 +31,7 @@ export class CameraRig {
     this.desiredTarget = this.target.clone();
     this.orbit = { yaw: 0.8, pitch: 0.6, distance: 220, target: ARENA_CENTER.clone() };
     this.cinematic = 0;
+    this.override = null;
     this.lastFocus = null;
     this.listeners = new Set();
     this.attach(element);
@@ -217,7 +218,13 @@ export class CameraRig {
     let targetRate = null;
     let focus = null;
 
-    switch (this.mode) {
+    switch (this.override ? "override" : this.mode) {
+      case "override":
+        this.desiredPosition.copy(this.override.position);
+        this.desiredTarget.copy(this.override.target);
+        rate = 5;
+        targetRate = 9;
+        break;
       case "free": {
         const { yaw, pitch, distance, target } = this.orbit;
         this.desiredPosition.set(

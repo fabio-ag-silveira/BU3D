@@ -140,8 +140,8 @@ export const PHASE_DELAYS = {
   roundStart: 1800,
   settle: 900,
   timeout: 400,
-  roundOver: 2800,
-  matchOver: 8000,
+  roundOver: 6000,
+  matchOver: 11000,
 };
 
 // Geometria do carrinho (tanque). A posicao do jogador e o centro da base, no chao.

@@ -7,6 +7,7 @@ import { CityMesh, Ground } from "./city.js";
 import { TankModel } from "./tank.js";
 import { Effects } from "./effects.js";
 import { CameraRig } from "./camera.js";
+import { Replay } from "./replay.js";
 
 const GUIDE_POINTS = 26;
 const NO_WIND = { x: 0, z: 0 };
@@ -45,6 +46,8 @@ export class Stage {
     this.world = new VoxelWorld();
     this.effects = new Effects(this.scene);
     this.rig = new CameraRig(this.camera, canvas);
+    this.replay = new Replay(this);
+    this.overlayRoot = document.querySelector(".stage-overlay");
     this.tanks = new Map();
     this.cloudOffset = new THREE.Vector3();
     this.themeKey = null;
@@ -401,8 +404,9 @@ export class Stage {
     return { position: center, velocity: lead.velocity };
   }
 
-  handleEvent(event, state, context) {
+  handleEvent(event, state, context, now) {
     this.effects.handleEvent(event, state, context);
+    this.replay.handleEvent(event, now, context);
   }
 
   render(state, dt, time) {
@@ -412,6 +416,8 @@ export class Stage {
     this.updateGuide(state);
     const focus = this.updateProjectiles(state);
     this.updateCrates(state, time);
+    this.replay.record(state, time);
+    this.replay.update(dt, state);
 
     this.effects.update(dt, state);
     this.rig.update(state, dt, { projectileFocus: focus, shake: this.effects.shake, world: this.world });

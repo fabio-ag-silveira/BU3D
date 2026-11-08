@@ -1654,3 +1654,67 @@ body.minimap-off .minimap {
     font-size: 0.55rem;
   }
 }
+
+/* Replay do tiro final: faixas de cinema e o resto da camada some. */
+.replay-bars {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+
+.replay-bars::before,
+.replay-bars::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 11%;
+  background: #000;
+  transition: transform 350ms ease;
+}
+
+.replay-bars::before {
+  top: 0;
+  transform: translateY(-100%);
+}
+
+.replay-bars::after {
+  bottom: 0;
+  transform: translateY(100%);
+}
+
+.replay-tag {
+  position: absolute;
+  left: 50%;
+  bottom: calc(11% + 10px);
+  transform: translateX(-50%);
+  padding: 3px 12px;
+  border-radius: 6px;
+  background: #ef4444;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.stage-overlay.is-replay .replay-bars {
+  opacity: 1;
+}
+
+.stage-overlay.is-replay .replay-bars::before,
+.stage-overlay.is-replay .replay-bars::after {
+  transform: none;
+}
+
+.stage-overlay.is-replay .topbar,
+.stage-overlay.is-replay .power-panel,
+.stage-overlay.is-replay .minimap,
+.stage-overlay.is-replay .camera-chip,
+.stage-overlay.is-replay .float-layer {
+  opacity: 0;
+}
+
+.stage-overlay.is-replay .banner {
+  top: 14%;
+}
