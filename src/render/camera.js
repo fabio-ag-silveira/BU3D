@@ -125,10 +125,12 @@ export class CameraRig {
   chasePose(player) {
     const forward = forwardVector(player.yaw);
     const aim = aimDirection(player.yaw, Math.min(player.elevation, 40));
+    // Tela estreita (celular em pe): afasta a camera para o carrinho nao tomar a tela toda.
+    const spread = clamp(1.15 / this.camera.aspect, 1, 1.8);
     this.desiredPosition.set(
-      player.position.x - forward.x * 28,
-      player.position.y + 11.5,
-      player.position.z - forward.z * 28,
+      player.position.x - forward.x * 28 * spread,
+      player.position.y + 11.5 * spread,
+      player.position.z - forward.z * 28 * spread,
     );
     this.desiredTarget.set(
       player.position.x + aim.x * 26,
@@ -144,7 +146,7 @@ export class CameraRig {
     const span = Math.max(30, Math.hypot(dx, dz));
     const dirX = dx / span;
     const dirZ = dz / span;
-    const distance = 30 + span * 0.55;
+    const distance = (30 + span * 0.55) * clamp(1.15 / this.camera.aspect, 1, 1.6);
     this.desiredPosition.set(
       player.position.x - dirX * distance - dirZ * span * 0.18,
       Math.max(player.position.y, opponent.position.y) + 28 + span * 0.42,
@@ -195,7 +197,7 @@ export class CameraRig {
       }
       const distance = Math.hypot(to.x - from.x, to.y - from.y, to.z - from.z);
       const pulled = Math.max(0, blocked - 0.1);
-      if (distance * pulled >= 14) {
+      if (distance * pulled >= Math.max(14, distance * 0.65)) {
         to.set(
           from.x + (to.x - from.x) * pulled,
           from.y + (to.y - from.y) * pulled,

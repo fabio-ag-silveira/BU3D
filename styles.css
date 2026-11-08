@@ -1331,3 +1331,272 @@ body.minimap-off .minimap {
     bottom: 6px;
   }
 }
+
+/* ---------- Ajustes do celular (testado no iPhone) ---------- */
+
+@media (max-width: 980px), (pointer: coarse) {
+  /* O placar respeita a area segura (recorte da camera) e os botoes dos cantos. */
+  .topbar {
+    left: calc(max(10px, env(safe-area-inset-left)) + 50px);
+    right: calc(max(10px, env(safe-area-inset-right)) + 50px);
+    grid-template-columns: minmax(0, 240px) auto minmax(0, 240px);
+    justify-content: space-between;
+  }
+
+  .tb-player.is-right {
+    width: 100%;
+  }
+
+  .tb-hp {
+    height: 7px;
+    margin-top: 4px;
+  }
+
+  .tb-meta {
+    margin-top: 3px;
+  }
+
+  .tb-fuel {
+    height: 3px;
+  }
+
+  .tb-hp-value {
+    font-size: 0.7rem;
+  }
+
+  .tb-rounds i {
+    width: 7px;
+    height: 7px;
+  }
+
+  .minimap {
+    right: max(10px, env(safe-area-inset-right));
+  }
+
+  .power-bar {
+    height: 10px;
+  }
+
+  .aim-readout {
+    margin-top: 3px;
+    font-size: 0.68rem;
+  }
+
+  .banner {
+    top: 34%;
+  }
+
+  .banner strong {
+    font-size: 1.35rem;
+    -webkit-text-stroke-width: 1px;
+  }
+
+  .banner.is-small {
+    top: 34%;
+  }
+
+  .banner.is-small strong {
+    font-size: 1.05rem;
+  }
+
+  .touch-controls {
+    gap: 10px;
+    padding-top: 6px;
+  }
+
+  .touch-group {
+    gap: 8px;
+  }
+
+  .touch-button {
+    width: 56px;
+    height: 48px;
+    border-radius: 14px;
+  }
+
+  .touch-text {
+    width: 66px;
+  }
+
+  .touch-fire {
+    width: 120px;
+  }
+}
+
+/* Celular deitado: pouca altura, entao placar em uma linha e tudo menor. */
+@media (max-height: 500px) {
+  .stage-button {
+    top: max(6px, env(safe-area-inset-top));
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+  }
+
+  .menu-button {
+    left: max(8px, env(safe-area-inset-left));
+  }
+
+  .fullscreen-button {
+    right: max(8px, env(safe-area-inset-right));
+  }
+
+  .topbar {
+    top: max(6px, env(safe-area-inset-top));
+    left: calc(max(8px, env(safe-area-inset-left)) + 46px);
+    right: calc(max(8px, env(safe-area-inset-right)) + 46px);
+    grid-template-columns: minmax(0, 210px) auto minmax(0, 210px);
+  }
+
+  .tb-player {
+    padding: 4px 8px 5px;
+    border-radius: 10px;
+  }
+
+  .tb-name {
+    font-size: 0.66rem;
+  }
+
+  .tb-center {
+    grid-auto-flow: column;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 10px;
+    border-radius: 10px;
+  }
+
+  .tb-round {
+    display: none;
+  }
+
+  .tb-timer {
+    font-size: 1.05rem;
+  }
+
+  .tb-wind {
+    margin-top: 0;
+    gap: 5px;
+    font-size: 0.66rem;
+  }
+
+  .wind-dial {
+    width: 20px;
+    height: 20px;
+  }
+
+  .wind-arrow::before {
+    top: 3px;
+    height: 13px;
+  }
+
+  .wind-arrow::after {
+    top: 1px;
+    border-left-width: 4px;
+    border-right-width: 4px;
+    border-bottom-width: 6px;
+    margin-left: -4px;
+  }
+
+  .minimap {
+    top: calc(max(6px, env(safe-area-inset-top)) + 48px);
+    width: 72px;
+    height: 72px;
+  }
+
+  .banner,
+  .banner.is-small {
+    top: 26%;
+  }
+
+  .power-panel {
+    bottom: 6px;
+    width: min(260px, 34%);
+  }
+
+  .power-bar {
+    height: 8px;
+  }
+
+  .aim-readout {
+    font-size: 0.62rem;
+  }
+
+  .touch-controls {
+    padding-top: 5px;
+    padding-bottom: max(5px, env(safe-area-inset-bottom));
+  }
+
+  .touch-button {
+    width: 52px;
+    height: 40px;
+    font-size: 1.1rem;
+  }
+
+  .touch-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .touch-text {
+    width: 62px;
+    font-size: 0.66rem;
+  }
+
+  .touch-fire {
+    width: 112px;
+    font-size: 0.9rem;
+  }
+
+  .touch-fire small {
+    font-size: 0.55rem;
+  }
+}
+
+/* Celular em pe: placar abaixo dos botoes dos cantos, ocupando a largura. */
+@media (max-width: 560px) {
+  .topbar {
+    top: calc(max(10px, env(safe-area-inset-top)) + 48px);
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 5px;
+  }
+
+  .stage-button {
+    width: 40px;
+    height: 40px;
+  }
+
+  .tb-center {
+    padding: 4px 8px 5px;
+  }
+
+  .tb-round {
+    font-size: 0.52rem;
+  }
+
+  .tb-timer {
+    font-size: 1.05rem;
+  }
+
+  .tb-wind {
+    font-size: 0.64rem;
+  }
+
+  .minimap {
+    top: calc(max(10px, env(safe-area-inset-top)) + 126px);
+    width: 84px;
+    height: 84px;
+  }
+
+  .power-panel {
+    width: 62%;
+  }
+
+  .touch-controls {
+    padding-top: 8px;
+  }
+
+  .touch-group .touch-button {
+    height: 46px;
+  }
+}
