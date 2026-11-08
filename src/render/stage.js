@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { CRATES, ROUND_MODIFIERS, SKY_THEMES, WEAPONS } from "../config.js";
 import { getMuzzle, getLaunchVelocity, powerToVelocity, projectileAt } from "../physics.js";
-import { VoxelWorld } from "../world.js";
+import { VoxelWorld, cellCoords, cellCenter } from "../world.js";
 import { getLayout, MATERIALS } from "../map.js";
 import { Sky, ARENA_CENTER } from "./sky.js";
 import { CityMesh, Ground } from "./city.js";
@@ -57,6 +57,8 @@ export class Stage {
     this.createProjectileAssets();
     this.createRain();
     this.crateMeshes = new Map();
+    this.fallingChunks = [];
+    this.voxelGeometry = new THREE.BoxGeometry(2, 2, 2);
     this.crateBox = new THREE.BoxGeometry(3, 3, 3).translate(0, 1.5, 0);
     this.crateStripe = new THREE.BoxGeometry(3.1, 0.6, 3.1).translate(0, 1.5, 0);
     this.canopyGeometry = new THREE.SphereGeometry(4, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
@@ -229,6 +231,88 @@ export class Stage {
     this.updateDebrisColors();
   }
 
+  // Blocos que desabaram caem animados; no destino so aparecem quando pousam.
+  startCollapse(collapses) {
+    const color = new THREE.Color();
+    const matrix = new THREE.Matrix4();
+    collapses.forEach((collapse) => {
+      const mesh = new THREE.InstancedMesh(
+        this.voxelGeometry,
+        new THREE.MeshStandardMaterial({ roughness: 0.9 }),
+        collapse.cells.length,
+      );
+      mesh.castShadow = true;
+      collapse.cells.forEach((cell, index) => {
+        const { ix, iy, iz } = cellCoords(cell.to);
+        const center = cellCenter(ix, iy, iz);
+        matrix.makeTranslation(center.x, center.y, center.z);
+        mesh.setMatrixAt(index, matrix);
+        color.copy(this.buildingColors[cell.material] ?? new THREE.Color("#777777"));
+        mesh.setColorAt(index, color.multiplyScalar(0.8 + ((cell.to * 7919) % 100) / 400));
+      });
+      const offset = collapse.drop * 2;
+      mesh.position.y = offset;
+      this.scene.add(mesh);
+      this.fallingChunks.push({
+        mesh,
+        offset,
+        velocity: 0,
+        cells: new Set(collapse.cells.map((cell) => cell.to)),
+        center: collapse.center,
+        size: collapse.cells.length,
+      });
+    });
+    this.cityDirty = true;
+  }
+
+  hiddenCells() {
+    if (!this.fallingChunks.length) {
+      return null;
+    }
+    const hidden = new Set();
+    this.fallingChunks.forEach((chunk) => chunk.cells.forEach((index) => hidden.add(index)));
+    return hidden;
+  }
+
+  clearChunks() {
+    this.fallingChunks.forEach((chunk) => {
+      this.scene.remove(chunk.mesh);
+      chunk.mesh.material.dispose();
+      chunk.mesh.dispose();
+    });
+    this.fallingChunks = [];
+    this.cityDirty = true;
+  }
+
+  updateChunks(dt) {
+    if (!this.fallingChunks.length) {
+      return;
+    }
+    let landed = false;
+    this.fallingChunks = this.fallingChunks.filter((chunk) => {
+      chunk.velocity += 45 * dt;
+      chunk.offset = Math.max(0, chunk.offset - chunk.velocity * dt);
+      chunk.mesh.position.y = chunk.offset;
+      if (chunk.offset > 0) {
+        return true;
+      }
+      this.scene.remove(chunk.mesh);
+      chunk.mesh.material.dispose();
+      chunk.mesh.dispose();
+      const base = { x: chunk.center.x, y: chunk.center.y - 4, z: chunk.center.z };
+      this.effects.burst(base, {
+        count: Math.min(60, 12 + Math.round(chunk.size / 40)), colors: ["#9a8b74", "#776b5a", "#5c5c5c"],
+        speed: 16, life: 2.2, size: 6, gravity: -1.5, grow: 4, drag: 1.6, alpha: 0.5, spread: 6,
+      });
+      this.effects.addShake(Math.min(2.5, chunk.size / 400));
+      landed = true;
+      return false;
+    });
+    if (landed) {
+      this.cityDirty = true;
+    }
+  }
+
   updateDebrisColors() {
     const theme = this.theme;
     if (!theme) {
@@ -264,8 +348,14 @@ export class Stage {
     if (removed.length && state.craters.length) {
       this.effects.spawnDebris(removed, state.craters[state.craters.length - 1], this.buildingColors);
     }
-    if (themeChanged || this.world.version !== this.city.version) {
-      this.city.rebuild(this.world, theme, state.seed, state.craters);
+    if (this.world.collapses.length) {
+      this.startCollapse(this.world.collapses);
+    } else if (!state.craters.length && this.fallingChunks.length) {
+      this.clearChunks();
+    }
+    if (themeChanged || this.world.version !== this.city.version || this.cityDirty) {
+      this.cityDirty = false;
+      this.city.rebuild(this.world, theme, state.seed, state.craters, this.hiddenCells());
     }
   }
 
@@ -437,6 +527,7 @@ export class Stage {
     this.updateGuide(state);
     const focus = this.updateProjectiles(state);
     this.updateCrates(state, time);
+    this.updateChunks(dt);
     this.replay.record(state, time);
     this.replay.update(dt, state);
 

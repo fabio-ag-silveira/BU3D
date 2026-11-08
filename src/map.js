@@ -96,6 +96,7 @@ function createLayout(kind, seed) {
     islands: [],
     parks: [],
     bridges: [],
+    anchors: [],
     spawns: [],
     lanesX: kind === "classic" ? LANES_X_CLASSIC : LANES_X_DYNAMIC,
     lanesZ: LANES_Z,
@@ -197,6 +198,16 @@ function addIsland(layout, rng) {
             if (inside(ix, iy, iz)) {
               layout.cells[cellIndex(ix, iy, iz)] = MATERIALS.concrete;
             }
+          }
+        }
+      }
+    }
+    // Nucleo da ilha: o que a mantem no ar. Se for destruido, a ilha cai.
+    for (let iz = cz - 1; iz <= cz + 1; iz += 1) {
+      for (let ix = cx - 1; ix <= cx + 1; ix += 1) {
+        for (let iy = top - 2; iy <= top; iy += 1) {
+          if (layout.cells[cellIndex(ix, iy, iz)]) {
+            layout.anchors.push(cellIndex(ix, iy, iz));
           }
         }
       }

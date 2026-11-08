@@ -42,6 +42,7 @@ export class VoxelWorld {
   }
 
   reset() {
+    this.collapses = [];
     this.cells.set(this.layout.cells);
     this.applied = [];
     this.version += 1;
@@ -141,8 +142,113 @@ export class VoxelWorld {
     return removed;
   }
 
+  // Desabamento: tudo que perdeu ligacao com o chao (ou com o nucleo de uma ilha)
+  // cai como um bloco rigido ate encostar em algo. Retorna os blocos que cairam.
+  collapse() {
+    const cells = this.cells;
+    const layer = sizeX * sizeZ;
+    const supported = new Uint8Array(CELL_COUNT);
+    const stack = [];
+    for (let index = 0; index < layer; index += 1) {
+      if (cells[index]) {
+        supported[index] = 1;
+        stack.push(index);
+      }
+    }
+    this.layout.anchors.forEach((index) => {
+      if (cells[index] && !supported[index]) {
+        supported[index] = 1;
+        stack.push(index);
+      }
+    });
+    const visit = (index, list, mark, test) => {
+      const ix = index % sizeX;
+      const iz = Math.floor(index / sizeX) % sizeZ;
+      const iy = Math.floor(index / layer);
+      const neighbors = [];
+      if (ix > 0) neighbors.push(index - 1);
+      if (ix < sizeX - 1) neighbors.push(index + 1);
+      if (iz > 0) neighbors.push(index - sizeX);
+      if (iz < sizeZ - 1) neighbors.push(index + sizeX);
+      if (iy > 0) neighbors.push(index - layer);
+      if (iy < sizeY - 1) neighbors.push(index + layer);
+      neighbors.forEach((next) => {
+        if (!mark[next] && test(next)) {
+          mark[next] = 1;
+          list.push(next);
+        }
+      });
+    };
+    while (stack.length) {
+      visit(stack.pop(), stack, supported, (next) => cells[next] !== 0);
+    }
+
+    // Agrupa o que ficou solto em blocos conectados.
+    const grouped = new Uint8Array(CELL_COUNT);
+    const components = [];
+    for (let index = layer; index < CELL_COUNT; index += 1) {
+      if (!cells[index] || supported[index] || grouped[index]) {
+        continue;
+      }
+      const component = [index];
+      grouped[index] = 1;
+      for (let cursor = 0; cursor < component.length; cursor += 1) {
+        visit(component[cursor], component, grouped, (next) => cells[next] !== 0 && !supported[next]);
+      }
+      components.push(component);
+    }
+    if (!components.length) {
+      return [];
+    }
+
+    // Os mais baixos caem primeiro; cada bloco desce o maximo sem atravessar nada.
+    const lowest = (component) => Math.min(...component.map((index) => Math.floor(index / layer)));
+    components.sort((a, b) => lowest(a) - lowest(b));
+    const result = [];
+    components.forEach((component) => {
+      const members = new Set(component);
+      let drop = Infinity;
+      component.forEach((index) => {
+        let below = index - layer;
+        if (members.has(below)) {
+          return;
+        }
+        let gap = 0;
+        while (below >= 0 && !cells[below]) {
+          gap += 1;
+          below -= layer;
+        }
+        drop = Math.min(drop, gap);
+      });
+      if (!Number.isFinite(drop) || drop <= 0) {
+        return;
+      }
+      const moved = component.map((index) => ({ from: index, to: index - drop * layer, material: cells[index] }));
+      moved.forEach((cell) => {
+        cells[cell.from] = 0;
+      });
+      moved.forEach((cell) => {
+        cells[cell.to] = cell.material;
+      });
+      const center = moved.reduce((sum, cell) => {
+        const { ix, iy, iz } = cellCoords(cell.to);
+        sum.x += ix;
+        sum.y += iy;
+        sum.z += iz;
+        return sum;
+      }, { x: 0, y: 0, z: 0 });
+      result.push({
+        cells: moved,
+        drop,
+        center: cellCenter(center.x / moved.length, center.y / moved.length, center.z / moved.length),
+      });
+    });
+    return result;
+  }
+
   // Sincroniza com a lista de crateras do snapshot. Retorna as celulas removidas agora.
   sync(craters) {
+    this.collapses = [];
     const applied = this.applied;
     const consistent = applied.length <= craters.length &&
       (applied.length === 0 || applied[applied.length - 1] === craters[applied.length - 1].id);
@@ -156,7 +262,11 @@ export class VoxelWorld {
 
     const removed = [];
     for (let index = this.applied.length; index < craters.length; index += 1) {
-      removed.push(...this.carve(craters[index]));
+      const carved = this.carve(craters[index]);
+      removed.push(...carved);
+      if (carved.length) {
+        this.collapses.push(...this.collapse());
+      }
       this.applied.push(craters[index].id);
     }
     this.version += 1;

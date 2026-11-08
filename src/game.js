@@ -611,6 +611,9 @@ export class Game {
       this.craters.shift();
     }
     this.world.sync(this.craters);
+    this.world.collapses.forEach((collapse) => {
+      this.emit("collapse", { ...collapse.center, size: collapse.cells.length, drop: collapse.drop * VOXEL_SIZE });
+    });
     this.impact = { x: point.x, y: point.y, z: point.z };
     report.explosions += 1;
     this.destroyCrates(point, weapon.radius);

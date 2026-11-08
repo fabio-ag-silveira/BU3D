@@ -52,7 +52,8 @@ export class CityMesh {
     this.scorch = new THREE.Color("#1a1512");
   }
 
-  rebuild(world, theme, seed, craters) {
+  // hidden: celulas que estao sendo animadas caindo (nao desenha ainda no destino).
+  rebuild(world, theme, seed, craters, hidden = null) {
     const walls = this.walls;
     const lit = this.lit;
     const matrix = this.matrix;
@@ -82,7 +83,7 @@ export class CityMesh {
       for (let iz = 0; iz < sizeZ; iz += 1) {
         for (let ix = 0; ix < sizeX; ix += 1) {
           const material = cells[(iy * sizeZ + iz) * sizeX + ix];
-          if (!material) {
+          if (!material || hidden?.has((iy * sizeZ + iz) * sizeX + ix)) {
             continue;
           }
           const exposed =

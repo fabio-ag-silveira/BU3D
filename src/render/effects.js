@@ -371,6 +371,16 @@ export class Effects {
           count: 18, colors: ["#8a6a44", "#5c4630"], speed: 18, life: 1.2, size: 1.2, gravity: 30,
         });
         break;
+      case "collapse":
+        this.burst(event, {
+          count: Math.min(40, 10 + Math.round(event.size / 60)), colors: ["#a39582", "#7d7466"],
+          speed: 10, life: 2, size: 5, gravity: -1, grow: 3, drag: 1.4, alpha: 0.45, spread: 5,
+        });
+        if (event.size > 150) {
+          overlay?.showBanner("Desabamento!", { color: "#fbbf24", duration: 1.3, small: true });
+        }
+        sound?.explosion();
+        break;
       case "pushed":
         this.burst({ x: event.x, y: event.y + 0.6, z: event.z }, {
           count: Math.round(6 + event.strength), colors: ["#b9a58a", "#8f8170"], speed: 8, life: 1, size: 3, gravity: -1, grow: 2.5, drag: 2.5, alpha: 0.5, spread: 3,
