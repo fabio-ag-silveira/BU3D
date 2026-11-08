@@ -101,6 +101,7 @@
               <tr><th>Girar</th><td><kbd>A</kbd><kbd>D</kbd></td><td><kbd>J</kbd><kbd>L</kbd></td><td><kbd>←</kbd><kbd>→</kbd></td></tr>
               <tr><th>Ré/frente</th><td><kbd>Q</kbd><kbd>E</kbd></td><td><kbd>U</kbd><kbd>O</kbd></td><td><kbd>,</kbd><kbd>.</kbd></td></tr>
               <tr><th>Atirar</th><td><kbd>F</kbd></td><td><kbd>H</kbd></td><td><kbd>Espaço</kbd></td></tr>
+              <tr><th>Arma</th><td><kbd>R</kbd></td><td><kbd>P</kbd></td><td><kbd>Tab</kbd></td></tr>
             </tbody>
           </table>
           <p class="key-note">Segure o tiro para carregar a força e solte para disparar. Arraste na tela para girar a câmera e use a roda do mouse para zoom.</p>
@@ -157,6 +158,7 @@
           <div class="float-layer"></div>
 
           <div class="power-panel">
+            <span class="weapon-chip"></span>
             <div class="power-bar"><span class="power-fill"></span><span class="power-marker"></span></div>
             <p class="aim-readout"></p>
           </div>
@@ -188,6 +190,7 @@
         </div>
         <div class="touch-group">
           <button type="button" class="touch-button touch-text touch-camera" id="touchCamera" aria-label="Trocar câmera">CÂM</button>
+          <button type="button" class="touch-button touch-text touch-weapon" data-control="weapon" aria-label="Trocar de arma">ARMA</button>
           <button type="button" class="touch-button" data-control="up" aria-label="Levantar o canhão"><svg class="touch-icon is-up" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg></button>
           <button type="button" class="touch-button" data-control="down" aria-label="Abaixar o canhão"><svg class="touch-icon is-down" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg></button>
           <button type="button" class="touch-button touch-fire" data-control="fire" aria-label="Atirar: segure para carregar e solte">

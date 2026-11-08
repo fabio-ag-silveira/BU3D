@@ -91,6 +91,35 @@ export class VoxelWorld {
     return point.y <= 0 || this.isBuildingSolid(point);
   }
 
+  // Qual eixo foi cruzado ao entrar no solido (para o ricochete): "x", "y" ou "z".
+  hitAxis(previous, current) {
+    if (current.y <= 0 && previous.y > 0) {
+      return "y";
+    }
+    const cell = (point) => ({
+      x: Math.floor((point.x - originX) / VOXEL_SIZE),
+      y: Math.floor(point.y / VOXEL_SIZE),
+      z: Math.floor((point.z - originZ) / VOXEL_SIZE),
+    });
+    const from = cell(previous);
+    const to = cell(current);
+    for (const axis of ["y", "x", "z"]) {
+      if (from[axis] === to[axis]) {
+        continue;
+      }
+      const probe = { ...from, [axis]: to[axis] };
+      if (this.buildingAtCell(probe.x, probe.y, probe.z)) {
+        return axis;
+      }
+    }
+    const delta = {
+      x: Math.abs(current.x - previous.x),
+      y: Math.abs(current.y - previous.y),
+      z: Math.abs(current.z - previous.z),
+    };
+    return delta.x >= delta.y && delta.x >= delta.z ? "x" : delta.z >= delta.y ? "z" : "y";
+  }
+
   // Remove as celulas dentro da cratera e devolve os centros removidos (para os destrocos).
   carve(crater) {
     const removed = [];

@@ -30,12 +30,20 @@ export function bearingTo(from, to) {
 }
 
 // Forma fechada da trajetoria: o vento e uma aceleracao horizontal constante.
-export function projectileAt(origin, velocity, wind, time) {
+export function projectileAt(origin, velocity, wind, time, gravity = GRAVITY) {
   const half = (time * time) / 2;
   return {
     x: origin.x + velocity.x * time + wind.x * half,
-    y: origin.y + velocity.y * time - GRAVITY * half,
+    y: origin.y + velocity.y * time - gravity * half,
     z: origin.z + velocity.z * time + wind.z * half,
+  };
+}
+
+export function velocityAt(velocity, wind, time, gravity = GRAVITY) {
+  return {
+    x: velocity.x + wind.x * time,
+    y: velocity.y - gravity * time,
+    z: velocity.z + wind.z * time,
   };
 }
 

@@ -1600,3 +1600,29 @@ body.minimap-off .minimap {
     height: 46px;
   }
 }
+
+/* Arma selecionada, acima da barra de forca. */
+.weapon-chip {
+  display: inline-block;
+  margin-bottom: 5px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(10, 12, 18, 0.7);
+  border: 1px solid color-mix(in srgb, var(--weapon-color, #fff) 60%, transparent);
+  color: var(--weapon-color, #fff);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.touch-weapon {
+  color: #ffd166;
+}
+
+@media (max-height: 500px) {
+  .weapon-chip {
+    margin-bottom: 3px;
+    padding: 1px 8px;
+    font-size: 0.62rem;
+  }
+}

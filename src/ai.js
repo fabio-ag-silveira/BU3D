@@ -35,7 +35,7 @@ function createHitbox(position, yaw) {
   };
 }
 
-export function simulateShot(world, attacker, target, shot, wind, simulationStep = 0.05) {
+export function simulateShot(world, attacker, target, shot, wind, simulationStep = 0.05, gravity = undefined) {
   const origin = getMuzzle(attacker.position, shot.yaw, shot.elevation);
   const launch = getLaunchVelocity(shot.yaw, shot.elevation, shot.velocity);
   const targetCenter = getTankCenter(target);
@@ -45,7 +45,7 @@ export function simulateShot(world, attacker, target, shot, wind, simulationStep
   let bestDistance = Number.POSITIVE_INFINITY;
 
   for (let elapsed = simulationStep; elapsed <= MAX_SIMULATION_TIME; elapsed += simulationStep) {
-    const point = projectileAt(origin, launch, wind, elapsed);
+    const point = projectileAt(origin, launch, wind, elapsed, gravity);
     const dx = point.x - targetCenter.x;
     const dy = point.y - targetCenter.y;
     const dz = point.z - targetCenter.z;
@@ -90,7 +90,7 @@ function sameShot(a, b) {
   return a.yaw === b.yaw && a.elevation === b.elevation && a.velocity === b.velocity;
 }
 
-function refineShot(world, attacker, target, seed, wind) {
+function refineShot(world, attacker, target, seed, wind, gravity) {
   let best = { ...seed };
   for (let yaw = seed.yaw - 3; yaw <= seed.yaw + 3; yaw += 1) {
     for (let elevation = seed.elevation - 4; elevation <= seed.elevation + 4; elevation += 1) {
@@ -100,7 +100,7 @@ function refineShot(world, attacker, target, seed, wind) {
           elevation: clamp(elevation, ELEVATION_LIMITS.min, ELEVATION_LIMITS.max),
           velocity: clamp(velocity, POWER_MIN_VELOCITY, POWER_MAX_VELOCITY),
         };
-        const result = simulateShot(world, attacker, target, shot, wind, 0.02);
+        const result = simulateShot(world, attacker, target, shot, wind, 0.02, gravity);
         if (result.hitTarget) {
           return { ...shot, score: 0 };
         }
@@ -120,6 +120,20 @@ function applyImprecision(shot, preset) {
     elevation: clamp(shot.elevation + jitter(preset.aimJitter.elevation), ELEVATION_LIMITS.min, ELEVATION_LIMITS.max),
     velocity: clamp(shot.velocity + jitter(preset.aimJitter.velocity), POWER_MIN_VELOCITY, POWER_MAX_VELOCITY),
   };
+}
+
+// Pesado quando acha um tiro certeiro; fragmentacao quando so chega perto.
+function chooseWeapon(attacker, score) {
+  if (score === 0 && attacker.ammo.heavy > 0) {
+    return "heavy";
+  }
+  if (score > 0 && score < 22 && attacker.ammo.cluster > 0) {
+    return "cluster";
+  }
+  if (score >= 22 && score < 40 && attacker.ammo.bounce > 0 && Math.random() < 0.3) {
+    return "bounce";
+  }
+  return "standard";
 }
 
 // Busca em grade por (giro, elevacao, velocidade), considerando vento, predios e crateras.
@@ -142,7 +156,7 @@ export function planAiShot(game) {
       for (let elevation = 0; elevation <= 80; elevation += preset.elevationStep) {
         for (let velocity = POWER_MIN_VELOCITY; velocity <= POWER_MAX_VELOCITY; velocity += preset.velocityStep) {
           const shot = { yaw, elevation, velocity };
-          const result = simulateShot(world, attacker, target, shot, wind, preset.simulationStep);
+          const result = simulateShot(world, attacker, target, shot, wind, preset.simulationStep, game.gravity);
           if (result.hitTarget && !previousMisses.some((miss) => sameShot(miss, shot))) {
             selected = { ...shot, score: 0 };
             break search;
@@ -158,7 +172,7 @@ export function planAiShot(game) {
     candidates.sort((a, b) => a.score - b.score);
     let best = candidates[0] ?? { yaw: attacker.yaw, elevation: 45, velocity: 35, score: Number.POSITIVE_INFINITY };
     if (preset.refinement) {
-      best = refineShot(world, attacker, target, best, wind);
+      best = refineShot(world, attacker, target, best, wind, game.gravity);
       selected = best;
     } else {
       const pool = candidates.slice(0, Math.max(1, preset.candidatePool));
@@ -168,6 +182,7 @@ export function planAiShot(game) {
 
   const shot = applyImprecision(selected, preset);
   return {
+    weapon: chooseWeapon(attacker, selected.score),
     yaw: shot.yaw,
     elevation: shot.elevation,
     power: velocityToPower(shot.velocity),

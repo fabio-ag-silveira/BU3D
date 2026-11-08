@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { WEAPONS } from "../config.js";
 
 const MAX_PARTICLES = 1600;
 const MAX_DEBRIS = 260;
@@ -339,6 +340,19 @@ export class Effects {
         sound?.shot(event.power);
         break;
       }
+      case "split":
+        this.burst(event, { count: 24, colors: ["#ffd166", "#ffb347", "#ffffff"], speed: 22, life: 0.45, size: 1.6, glow: true });
+        this.flashLight(event, 120, 0.25, "#ffd166");
+        sound?.shot(0.2);
+        break;
+      case "bounce":
+        this.burst(event, { count: 14, colors: ["#86efac", "#ffffff"], speed: 16, life: 0.35, size: 1.2, glow: true });
+        this.burst(event, { count: 6, colors: ["#8a8a8a"], speed: 6, life: 1, size: 2.5, grow: 2, alpha: 0.4 });
+        sound?.land();
+        break;
+      case "weapon":
+        sound?.tick(false);
+        break;
       case "explosion": {
         this.spawnFireball(event, event.radius * 0.75);
         this.spawnRing(event, event.radius * 1.6);
@@ -358,7 +372,7 @@ export class Effects {
             count: 18, colors: ["#9a8b74", "#776b5a"], speed: 18, life: 1.6, size: 4, gravity: -1, grow: 3, drag: 2.2, alpha: 0.5,
           });
         }
-        this.addShake(1.6);
+        this.addShake(event.radius / 8);
         sound?.explosion();
         break;
       }
@@ -420,7 +434,7 @@ export class Effects {
     }
   }
 
-  update(dt, state, projectilePosition) {
+  update(dt, state) {
     if (state) {
       this.windDrift.set(state.wind.x * 3, 0, state.wind.z * 3);
     }
@@ -477,7 +491,7 @@ export class Effects {
       return;
     }
     this.emitDamageSmoke(dt, state);
-    this.emitTrail(dt, state, projectilePosition);
+    this.emitTrail(dt, state);
   }
 
   updateDebris(dt) {
@@ -544,8 +558,8 @@ export class Effects {
     });
   }
 
-  emitTrail(dt, state, position) {
-    if (!state.projectile || !position) {
+  emitTrail(dt, state) {
+    if (!state.projectiles.length) {
       return;
     }
     this.trailClock += dt;
@@ -553,9 +567,13 @@ export class Effects {
       return;
     }
     this.trailClock = 0;
-    const owner = state.players.find((player) => player.id === state.projectile.ownerId);
-    this.burst(position, { count: 1, colors: [owner?.color ?? "#ffffff"], speed: 0.3, life: 0.7, size: 2.2, glow: true, alpha: 0.9 });
-    this.burst(position, { count: 1, colors: ["#bdbdbd"], speed: 0.6, life: 1.6, size: 1.6, grow: 2.2, alpha: 0.35, gravity: -0.5 });
+    state.projectiles.forEach((projectile) => {
+      const owner = state.players.find((player) => player.id === projectile.ownerId);
+      const color = projectile.weapon === "standard" ? owner?.color ?? "#ffffff" : WEAPONS[projectile.weapon]?.color ?? "#ffffff";
+      const size = projectile.weapon === "bomblet" ? 1.3 : projectile.weapon === "heavy" ? 3 : 2.2;
+      this.burst(projectile.position, { count: 1, colors: [color], speed: 0.3, life: 0.7, size, glow: true, alpha: 0.9 });
+      this.burst(projectile.position, { count: 1, colors: ["#bdbdbd"], speed: 0.6, life: 1.6, size: size * 0.7, grow: 2.2, alpha: 0.3, gravity: -0.5 });
+    });
   }
 
   resize(height) {

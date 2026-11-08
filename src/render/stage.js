@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { SKY_THEMES } from "../config.js";
+import { SKY_THEMES, WEAPONS } from "../config.js";
 import { getMuzzle, getLaunchVelocity, powerToVelocity, projectileAt } from "../physics.js";
 import { VoxelWorld, BUILDINGS } from "../world.js";
 import { Sky, ARENA_CENTER } from "./sky.js";
@@ -50,19 +50,12 @@ export class Stage {
     this.themeKey = null;
     this.buildingColors = {};
 
-    this.createProjectile();
+    this.createProjectileAssets();
     this.createGuide();
     this.resize();
   }
 
-  createProjectile() {
-    const group = new THREE.Group();
-    const shell = new THREE.Mesh(
-      new THREE.SphereGeometry(0.75, 16, 12),
-      new THREE.MeshStandardMaterial({ color: "#2b2b2b", roughness: 0.3, metalness: 0.8 }),
-    );
-    shell.castShadow = true;
-    group.add(shell);
+  createProjectileAssets() {
     const canvas = document.createElement("canvas");
     canvas.width = 64;
     canvas.height = 64;
@@ -73,20 +66,36 @@ export class Stage {
     gradient.addColorStop(1, "rgba(255,255,255,0)");
     context.fillStyle = gradient;
     context.fillRect(0, 0, 64, 64);
-    this.projectileGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: new THREE.CanvasTexture(canvas),
+    this.glowTexture = new THREE.CanvasTexture(canvas);
+    this.shellGeometry = new THREE.SphereGeometry(1, 16, 12);
+    this.projectileMeshes = new Map();
+    // Uma luz so, que acompanha o primeiro projetil (varias luzes pesam no celular).
+    this.projectileLight = new THREE.PointLight("#ffd27a", 0, 45, 1.5);
+    this.scene.add(this.projectileLight);
+  }
+
+  createProjectileMesh(projectile) {
+    const weapon = WEAPONS[projectile.weapon] ?? WEAPONS.standard;
+    const group = new THREE.Group();
+    const shell = new THREE.Mesh(
+      this.shellGeometry,
+      new THREE.MeshStandardMaterial({ color: "#2b2b2b", emissive: weapon.color, emissiveIntensity: 0.35, roughness: 0.3, metalness: 0.8 }),
+    );
+    shell.scale.setScalar(weapon.size);
+    shell.castShadow = true;
+    group.add(shell);
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: this.glowTexture,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       transparent: true,
       toneMapped: false,
     }));
-    this.projectileGlow.scale.setScalar(6);
-    group.add(this.projectileGlow);
-    this.projectileLight = new THREE.PointLight("#ffd27a", 40, 45, 1.5);
-    group.add(this.projectileLight);
-    group.visible = false;
-    this.projectile = group;
+    glow.scale.setScalar(weapon.size * 8);
+    group.add(glow);
+    group.userData.glow = glow;
     this.scene.add(group);
+    return group;
   }
 
   createGuide() {
@@ -192,9 +201,10 @@ export class Stage {
     const power = state.charge.active ? state.charge.power : player.lastPower ?? 0.5;
     const origin = getMuzzle(player.position, player.yaw, player.elevation);
     const velocity = getLaunchVelocity(player.yaw, player.elevation, powerToVelocity(power));
+    const gravity = state.gravity;
     let count = 0;
     for (let index = 0; index < GUIDE_POINTS; index += 1) {
-      const point = projectileAt(origin, velocity, NO_WIND, index * 0.05 + 0.02);
+      const point = projectileAt(origin, velocity, NO_WIND, index * 0.05 + 0.02, gravity);
       if (this.world.isSolid(point)) {
         break;
       }
@@ -208,16 +218,40 @@ export class Stage {
     this.guide.material.color.set(state.charge.active ? "#ffffff" : player.color);
   }
 
-  updateProjectile(state) {
-    const projectile = state.projectile;
-    this.projectile.visible = Boolean(projectile);
-    if (!projectile) {
+  // Desenha todos os projeteis e devolve o que a camera deve seguir (centro do grupo).
+  updateProjectiles(state) {
+    const alive = new Set();
+    state.projectiles.forEach((projectile) => {
+      alive.add(projectile.id);
+      let mesh = this.projectileMeshes.get(projectile.id);
+      if (!mesh) {
+        mesh = this.createProjectileMesh(projectile);
+        this.projectileMeshes.set(projectile.id, mesh);
+      }
+      mesh.position.set(projectile.position.x, projectile.position.y, projectile.position.z);
+      const owner = state.players.find((player) => player.id === projectile.ownerId);
+      const weapon = WEAPONS[projectile.weapon] ?? WEAPONS.standard;
+      mesh.userData.glow.material.color.set(projectile.weapon === "standard" ? owner?.color ?? "#ffffff" : weapon.color);
+    });
+    this.projectileMeshes.forEach((mesh, id) => {
+      if (!alive.has(id)) {
+        this.scene.remove(mesh);
+        mesh.children.forEach((child) => child.material.dispose());
+        this.projectileMeshes.delete(id);
+      }
+    });
+
+    if (!state.projectiles.length) {
+      this.projectileLight.intensity = 0;
       return null;
     }
-    this.projectile.position.set(projectile.position.x, projectile.position.y, projectile.position.z);
-    const owner = state.players.find((player) => player.id === projectile.ownerId);
-    this.projectileGlow.material.color.set(owner?.color ?? "#ffffff");
-    return this.projectile.position;
+    const center = new THREE.Vector3();
+    state.projectiles.forEach((projectile) => center.add(projectile.position));
+    center.divideScalar(state.projectiles.length);
+    const lead = state.projectiles[0];
+    this.projectileLight.position.set(lead.position.x, lead.position.y, lead.position.z);
+    this.projectileLight.intensity = 40;
+    return { position: center, velocity: lead.velocity };
   }
 
   handleEvent(event, state, context) {
@@ -229,10 +263,10 @@ export class Stage {
     this.syncWorld(state);
     this.updateTanks(state, dt, time);
     this.updateGuide(state);
-    const projectilePosition = this.updateProjectile(state);
+    const focus = this.updateProjectiles(state);
 
-    this.effects.update(dt, state, projectilePosition);
-    this.rig.update(state, dt, { projectilePosition, shake: this.effects.shake, world: this.world });
+    this.effects.update(dt, state);
+    this.rig.update(state, dt, { projectileFocus: focus, shake: this.effects.shake, world: this.world });
 
     this.cloudOffset.x += (2 + state.wind.x * 9) * dt;
     this.cloudOffset.z += (1 + state.wind.z * 9) * dt;

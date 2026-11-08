@@ -209,7 +209,8 @@ export class CameraRig {
     }
   }
 
-  update(state, dt, { projectilePosition, shake, world }) {
+  update(state, dt, { projectileFocus = null, shake, world }) {
+    const projectilePosition = projectileFocus?.position ?? null;
     const current = state.players[state.turnIndex];
     const opponent = state.players[1 - state.turnIndex];
     let rate = 3.2;
@@ -254,7 +255,7 @@ export class CameraRig {
           this.desiredTarget.set(subject.x, (subject.y ?? 0) + 4, subject.z);
           rate = 1.6;
         } else if (state.phase === "flying" && follow && projectilePosition) {
-          this.projectilePose(state.projectile, projectilePosition);
+          this.projectilePose(projectileFocus, projectilePosition);
           focus = projectilePosition;
           rate = 4;
           targetRate = 10;

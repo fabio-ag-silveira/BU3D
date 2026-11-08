@@ -1,4 +1,4 @@
-import { GAME_MODES, MAX_HP, ROUNDS_TO_WIN } from "./config.js";
+import { GAME_MODES, MAX_HP, ROUNDS_TO_WIN, WEAPONS } from "./config.js";
 
 const PHASE_LABELS = {
   roundStart: "Preparando a rodada...",
@@ -10,7 +10,9 @@ const PHASE_LABELS = {
 function renderStats(player) {
   const hpPercent = Math.max(0, (player.hp / MAX_HP) * 100);
   const heading = ((Math.round(player.yaw) % 360) + 360) % 360;
-  const lastPower = player.lastPower === null ? "" : `<span>·</span><span>força ${Math.round(player.lastPower * 100)}%</span>`;
+  const weapon = WEAPONS[player.weapon] ?? WEAPONS.standard;
+  const ammo = weapon.ammo === null ? "" : ` ×${player.ammo[weapon.id]}`;
+  const lastPower = `<span>·</span><span>${weapon.label}${ammo}</span>`;
   return `
     <div class="hp-line">
       <div class="hp-track"><span class="hp-fill" style="width: ${hpPercent}%"></span></div>

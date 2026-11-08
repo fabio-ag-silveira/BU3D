@@ -1,4 +1,4 @@
-import { ARENA, FUEL_PER_TURN, GRID, MAX_HP, ROUNDS_TO_WIN, VOXEL_SIZE, WIND_MAX } from "./config.js";
+import { ARENA, FUEL_PER_TURN, GRID, MAX_HP, ROUNDS_TO_WIN, VOXEL_SIZE, WEAPONS, WIND_MAX } from "./config.js";
 import { degToRad, radToDeg } from "./math.js";
 
 const MAP_WIDTH = ARENA.maxX - ARENA.minX;
@@ -30,6 +30,7 @@ export class StageOverlay {
       powerFill: root.querySelector(".power-fill"),
       powerMarker: root.querySelector(".power-marker"),
       readout: root.querySelector(".aim-readout"),
+      weapon: root.querySelector(".weapon-chip"),
       camera: root.querySelector(".camera-chip"),
       banner: root.querySelector(".banner"),
       floatLayer: root.querySelector(".float-layer"),
@@ -136,8 +137,12 @@ export class StageOverlay {
         this.el.powerMarker.style.display = value === null ? "none" : "block";
         this.el.powerMarker.style.left = `${(value ?? 0) * 100}%`;
       });
-      this.write("readout", `${current.label}|${Math.round(current.elevation)}|${Math.round(current.yaw)}|${state.charge.active}`, () => {
+      const weapon = WEAPONS[current.weapon] ?? WEAPONS.standard;
+      const ammo = weapon.ammo === null ? "" : ` ×${current.ammo[weapon.id]}`;
+      this.write("readout", `${current.label}|${Math.round(current.elevation)}|${Math.round(current.yaw)}|${state.charge.active}|${weapon.id}${ammo}`, () => {
         const yaw = ((Math.round(current.yaw) % 360) + 360) % 360;
+        this.el.weapon.textContent = `${weapon.label}${ammo}`;
+        this.el.weapon.style.setProperty("--weapon-color", weapon.color);
         this.el.readout.textContent = state.charge.active
           ? `${current.label} · solte para atirar`
           : `${current.label} · elevação ${Math.round(current.elevation)}° · rumo ${yaw}°`;
@@ -282,13 +287,13 @@ export class StageOverlay {
       context.restore();
     });
 
-    if (state.projectile) {
-      const point = toMap(state.projectile.position);
+    state.projectiles.forEach((projectile) => {
+      const point = toMap(projectile.position);
       context.fillStyle = "#ffffff";
       context.beginPath();
-      context.arc(point.x, point.y, 2.5 * ratio, 0, Math.PI * 2);
+      context.arc(point.x, point.y, (projectile.weapon === "bomblet" ? 1.6 : 2.5) * ratio, 0, Math.PI * 2);
       context.fill();
-    }
+    });
 
     // Posicao e campo de visao da camera (sempre apontando para cima).
     const camera = toMap(stage.camera.position);

@@ -66,6 +66,31 @@ export const AI_PRESETS = {
   },
 };
 
+// Armas: o canhao e infinito; as especiais tem municao por rodada.
+export const WEAPONS = {
+  standard: {
+    id: "standard", label: "Canhão", short: "CANHÃO", ammo: null,
+    radius: 13, damage: 40, directBonus: 10, crater: 6.5, color: "#fff7e6", size: 0.75,
+  },
+  cluster: {
+    id: "cluster", label: "Fragmentação", short: "FRAG", ammo: 2,
+    radius: 10, damage: 20, directBonus: 6, crater: 5, split: 4, color: "#ffb347", size: 0.9,
+  },
+  bounce: {
+    id: "bounce", label: "Quicante", short: "QUIC", ammo: 2,
+    radius: 12, damage: 34, directBonus: 10, crater: 6, bounces: 2, color: "#86efac", size: 0.75,
+  },
+  heavy: {
+    id: "heavy", label: "Pesado", short: "PESADO", ammo: 1,
+    radius: 20, damage: 55, directBonus: 10, crater: 10.5, color: "#fca5a5", size: 1.15,
+  },
+  bomblet: {
+    id: "bomblet", label: "Fragmento", short: "", ammo: null,
+    radius: 8, damage: 16, directBonus: 4, crater: 4, color: "#ffd166", size: 0.5,
+  },
+};
+export const WEAPON_ORDER = ["standard", "cluster", "bounce", "heavy"];
+
 export const MAX_HP = 100;
 export const ROUNDS_TO_WIN = 3;
 export const EXPLOSION_RADIUS = 13;
