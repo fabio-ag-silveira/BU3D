@@ -81,8 +81,6 @@ function buildStateKey(game, attacker, target) {
     Math.round(target.position.x),
     Math.round(target.position.y),
     Math.round(target.position.z),
-    game.wind.x,
-    game.wind.z,
     game.aiDifficulty,
   ].join(":");
 }
@@ -182,7 +180,15 @@ export function planAiShot(game) {
     }
   }
 
-  const shot = applyImprecision(selected, preset);
+  // Cada erro na mesma situacao deixa a mira mais firme (a IA "corrige" o tiro).
+  const steadiness = 1 / (1 + previousMisses.length * 0.6);
+  const shot = applyImprecision(selected, {
+    aimJitter: {
+      yaw: preset.aimJitter.yaw * steadiness,
+      elevation: preset.aimJitter.elevation * steadiness,
+      velocity: preset.aimJitter.velocity * steadiness,
+    },
+  });
   return {
     weapon: chooseWeapon(attacker, selected.score),
     yaw: shot.yaw,
