@@ -16,7 +16,6 @@ export const OUT_OF_BOUNDS_MARGIN = 30;
 export const GAME_MODES = {
   local: "local",
   ai: "ai",
-  lan: "lan",
 };
 
 export const AI_DIFFICULTIES = {

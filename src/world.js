@@ -57,7 +57,7 @@ function buildBaseCells() {
 const BASE_CELLS = buildBaseCells();
 
 // Cidade feita de voxels: cada cratera apaga as celulas dentro da esfera.
-// O estado e derivado so da lista de crateras, entao cliente LAN e servidor chegam ao mesmo resultado.
+// O estado e derivado so da lista de crateras: a logica do jogo e a renderizacao chegam ao mesmo resultado.
 export class VoxelWorld {
   constructor() {
     this.cells = new Uint8Array(CELL_COUNT);

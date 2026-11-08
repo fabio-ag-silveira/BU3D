@@ -1,14 +1,12 @@
 import { Game } from "./game.js";
-import { GAME_MODES, TIME_SCALE } from "./config.js";
-import { LanClient } from "./lanClient.js";
+import { GAME_MODES } from "./config.js";
 import { SoundBoard } from "./audio.js";
 import { Hud } from "./hud.js";
 import { InputController } from "./input.js";
 import { StageOverlay } from "./overlay.js";
-import { projectileAt } from "./physics.js";
 import { Stage } from "./render/stage.js";
 
-const canvas = document.getElementById("gameCanvas");
+const MINIMAP_KEY = "bu3d_minimap";
 
 const ui = {
   roundLabel: document.getElementById("roundLabel"),
@@ -16,23 +14,28 @@ const ui = {
   statusLabel: document.getElementById("statusLabel"),
   playerOneStats: document.getElementById("playerOneStats"),
   playerTwoStats: document.getElementById("playerTwoStats"),
+  playerOneRounds: document.getElementById("playerOneRounds"),
+  playerTwoRounds: document.getElementById("playerTwoRounds"),
   playerOneCard: document.querySelector(".player-one"),
   playerTwoCard: document.querySelector(".player-two"),
   modeButtons: Array.from(document.querySelectorAll("[data-mode]")),
   difficultyButtons: Array.from(document.querySelectorAll("[data-difficulty]")),
   cameraButtons: Array.from(document.querySelectorAll("[data-camera]")),
   soundButton: document.getElementById("soundButton"),
-  serverUrlInput: document.getElementById("serverUrlInput"),
-  createRoomButton: document.getElementById("createRoomButton"),
-  refreshRoomsButton: document.getElementById("refreshRoomsButton"),
-  leaveRoomButton: document.getElementById("leaveRoomButton"),
-  connectionStatus: document.getElementById("connectionStatus"),
-  roomList: document.getElementById("roomList"),
+  minimapButton: document.getElementById("minimapButton"),
+  resetButton: document.getElementById("resetButton"),
+  menuButton: document.getElementById("menuButton"),
+  menuClose: document.getElementById("menuClose"),
+  hudBackdrop: document.getElementById("hudBackdrop"),
+  fullscreenButton: document.getElementById("fullscreenButton"),
+  rotateDismiss: document.getElementById("rotateDismiss"),
+  touchCamera: document.getElementById("touchCamera"),
+  touchButtons: Array.from(document.querySelectorAll("[data-control]")),
 };
 
 let stage;
 try {
-  stage = new Stage(canvas);
+  stage = new Stage(document.getElementById("gameCanvas"));
 } catch (error) {
   document.getElementById("webglError").hidden = false;
   throw error;
@@ -42,46 +45,34 @@ const game = new Game();
 const hud = new Hud(ui);
 const overlay = new StageOverlay(document.querySelector(".stage-overlay"));
 const sound = new SoundBoard();
-ui.serverUrlInput.value = window.location.origin;
 
-let lanSnapshot = null;
-let lanReceivedAt = 0;
-const lanClient = new LanClient(ui, (snapshot) => {
-  lanSnapshot = snapshot;
-  lanReceivedAt = performance.now();
-});
-
-function isLanActive() {
-  return game.mode === GAME_MODES.lan && lanClient.connected;
+let minimapEnabled = true;
+try {
+  minimapEnabled = window.localStorage.getItem(MINIMAP_KEY) !== "off";
+} catch {
+  // preferencia so vale para a sessao
 }
 
-function reportLanError(error) {
-  ui.connectionStatus.textContent = error.message;
+function setMinimap(enabled) {
+  minimapEnabled = enabled;
+  document.body.classList.toggle("minimap-off", !enabled);
+  try {
+    window.localStorage.setItem(MINIMAP_KEY, enabled ? "on" : "off");
+  } catch {
+    // preferencia so vale para a sessao
+  }
 }
+setMinimap(minimapEnabled);
 
 function resetMatch() {
-  if (isLanActive()) {
-    lanClient.sendCommand("reset").catch(reportLanError);
-    return;
-  }
   game.resetGame();
 }
 
 const input = new InputController({
   resolveTarget(binding) {
-    if (isLanActive()) {
-      return "lan";
-    }
-    if (binding.player === "current") {
-      return game.currentPlayer.id;
-    }
-    return binding.player;
+    return binding.player === "current" ? game.currentPlayer.id : binding.player;
   },
   dispatch(target, control, pressed, options) {
-    if (target === "lan") {
-      lanClient.sendInput(control, pressed, options?.cancel).catch(reportLanError);
-      return;
-    }
     game.setInput(target, control, pressed, options);
   },
   onShortcut(key, event) {
@@ -91,8 +82,6 @@ const input = new InputController({
       sound.toggle();
     } else if (key === "c") {
       stage.rig.cycle(event.shiftKey ? -1 : 1);
-    } else if (isLanActive()) {
-      return;
     } else if (key === "m") {
       game.setMode(game.mode === GAME_MODES.ai ? GAME_MODES.local : GAME_MODES.ai);
     } else if (key === "n") {
@@ -104,46 +93,11 @@ const input = new InputController({
   },
 });
 input.attach(window);
-input.attachTouch(Array.from(document.querySelectorAll("[data-touch]")));
-
-// Celular: o painel lateral vira uma gaveta aberta pelo botao de menu.
-const hudPanel = document.getElementById("hudPanel");
-document.getElementById("drawerOpen").addEventListener("click", () => hudPanel.classList.add("is-open"));
-document.getElementById("drawerClose").addEventListener("click", () => hudPanel.classList.remove("is-open"));
-document.getElementById("touchCamera").addEventListener("click", (event) => {
-  stage.rig.cycle(1);
-  event.currentTarget.blur();
-});
-window.addEventListener("touchstart", () => document.body.classList.add("has-touch"), { once: true, passive: true });
-if (window.matchMedia?.("(pointer: coarse)").matches) {
-  document.body.classList.add("has-touch");
-}
-
-// Hospedagem estatica (ex.: Cloudflare Workers) nao tem o servidor das salas LAN.
-fetch("/api/rooms", { cache: "no-store" })
-  .then((response) => {
-    if (!response.ok || !(response.headers.get("content-type") ?? "").includes("json")) {
-      throw new Error("sem servidor");
-    }
-  })
-  .catch(() => {
-    document.body.classList.add("no-lan");
-    [ui.createRoomButton, ui.refreshRoomsButton, ui.leaveRoomButton,
-      ...ui.modeButtons.filter((button) => button.dataset.mode === GAME_MODES.lan)]
-      .forEach((button) => { button.disabled = true; });
-    ui.connectionStatus.textContent = "LAN indisponível nesta hospedagem. Para jogar em rede, rode node server.js no seu PC.";
-  });
 window.addEventListener("pointerdown", () => sound.unlock());
 
 ui.modeButtons.forEach((button) => {
   button.addEventListener("click", () => {
     game.setMode(button.dataset.mode);
-    if (button.dataset.mode === GAME_MODES.lan) {
-      lanClient.startRoomDiscovery(ui.serverUrlInput.value);
-    } else {
-      lanClient.stopRoomDiscovery();
-      lanClient.leaveRoom().catch(() => {});
-    }
     button.blur();
   });
 });
@@ -168,78 +122,85 @@ ui.soundButton.addEventListener("click", () => {
   ui.soundButton.blur();
 });
 
-ui.createRoomButton.addEventListener("click", async () => {
-  try {
-    game.setMode(GAME_MODES.lan);
-    lanClient.startRoomDiscovery(ui.serverUrlInput.value);
-    await lanClient.createRoom(ui.serverUrlInput.value);
-  } catch (error) {
-    reportLanError(error);
-  }
+ui.minimapButton.addEventListener("click", () => {
+  setMinimap(!minimapEnabled);
+  ui.minimapButton.blur();
 });
 
-ui.refreshRoomsButton.addEventListener("click", () => {
-  game.setMode(GAME_MODES.lan);
-  lanClient.startRoomDiscovery(ui.serverUrlInput.value);
+ui.resetButton.addEventListener("click", () => {
+  resetMatch();
+  setMenuOpen(false);
+  ui.resetButton.blur();
 });
 
-ui.leaveRoomButton.addEventListener("click", () => {
-  lanClient.leaveRoom().catch(() => {});
-  lanClient.stopRoomDiscovery();
-  game.setMode(GAME_MODES.ai);
-});
-
-window.addEventListener("beforeunload", () => {
-  if (lanClient.connected && lanClient.roomId) {
-    navigator.sendBeacon(
-      `${lanClient.serverUrl}/api/rooms/${lanClient.roomId}/leave`,
-      JSON.stringify({ clientId: lanClient.clientId }),
-    );
-  }
-});
-
-// Entre um polling e outro, o voo do projetil e extrapolado localmente.
-function extrapolateLanSnapshot(snapshot, now) {
-  const projectile = snapshot.projectile;
-  if (!projectile) {
-    return snapshot;
-  }
-  const ahead = (Math.min(now - lanReceivedAt, 250) / 1000) * TIME_SCALE;
-  const elapsed = projectile.elapsed + ahead;
-  return {
-    ...snapshot,
-    projectile: {
-      ...projectile,
-      elapsed,
-      position: projectileAt(projectile.origin, projectile.velocity, projectile.wind, elapsed),
-    },
+// Botoes de toque: segurar = tecla apertada; usam o mesmo caminho do teclado.
+ui.touchButtons.forEach((button) => {
+  const id = `touch:${button.dataset.control}`;
+  const release = (options) => {
+    button.classList.remove("is-pressed");
+    input.release(id, options);
   };
+  button.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    button.setPointerCapture(event.pointerId);
+    button.classList.add("is-pressed");
+    sound.unlock();
+    input.press(id, { player: "current", control: button.dataset.control });
+  });
+  button.addEventListener("pointerup", () => release());
+  button.addEventListener("pointercancel", () => release({ cancel: true }));
+  button.addEventListener("lostpointercapture", () => release());
+  button.addEventListener("contextmenu", (event) => event.preventDefault());
+});
+
+ui.touchCamera.addEventListener("click", () => {
+  stage.rig.cycle(1);
+  overlay.showBanner(`Câmera: ${stage.rig.label}`, { duration: 0.9, small: true });
+  ui.touchCamera.blur();
+});
+
+window.addEventListener("touchstart", () => document.body.classList.add("touch"), { once: true, passive: true });
+
+function setMenuOpen(open) {
+  document.body.classList.toggle("menu-open", open);
 }
 
-let lastInstanceId = null;
+ui.menuButton.addEventListener("click", () => setMenuOpen(true));
+ui.menuClose.addEventListener("click", () => setMenuOpen(false));
+ui.hudBackdrop.addEventListener("click", () => setMenuOpen(false));
+ui.rotateDismiss.addEventListener("click", () => document.body.classList.add("rotate-dismissed"));
+
+if (document.fullscreenEnabled) {
+  ui.fullscreenButton.hidden = false;
+  ui.fullscreenButton.addEventListener("click", async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+      await document.documentElement.requestFullscreen({ navigationUI: "hide" });
+      // Navegadores que suportam travam na horizontal; os demais ignoram.
+      await screen.orientation?.lock?.("landscape").catch(() => {});
+    } catch {
+      // tela cheia recusada pelo navegador
+    }
+    ui.fullscreenButton.blur();
+  });
+}
+
 let lastEventId = 0;
 let lastTickSecond = null;
 
 function consumeEvents(state) {
-  const newestId = state.events.reduce((max, event) => Math.max(max, event.id), 0);
-  if (lastInstanceId !== null && state.instanceId !== lastInstanceId) {
-    // Trocou de partida (ex.: entrou numa sala LAN): ignora o historico antigo.
-    lastInstanceId = state.instanceId;
-    lastEventId = newestId;
-    stage.effects.reset();
-    overlay.clear();
-    return;
-  }
-  lastInstanceId = state.instanceId;
-  if (newestId < lastEventId) {
-    lastEventId = 0;
-  }
   state.events.forEach((event) => {
     if (event.id > lastEventId) {
       stage.handleEvent(event, state, { sound, overlay });
+      lastEventId = event.id;
+      if (event.type === "explosion" && document.body.classList.contains("touch")) {
+        navigator.vibrate?.(35);
+      }
     }
   });
-  lastEventId = Math.max(lastEventId, newestId);
 }
 
 function updateTimerTicks(state) {
@@ -257,28 +218,20 @@ function frame(timestamp) {
   previousTimestamp = timestamp;
   const dt = deltaMs / 1000;
 
-  let state;
-  if (isLanActive() && lanSnapshot) {
-    state = extrapolateLanSnapshot(lanSnapshot, timestamp);
-  } else {
-    game.update(deltaMs);
-    state = game.getSnapshot();
-  }
+  game.update(deltaMs);
+  const state = game.getSnapshot();
 
   consumeEvents(state);
   updateTimerTicks(state);
   sound.setCharge(state.phase === "aiming" && state.charge.active ? state.charge.power : null);
 
   stage.render(state, dt, timestamp / 1000);
-  overlay.update(state, dt, {
-    stage,
-    cameraLabel: stage.rig.label,
-    localPlayerId: isLanActive() ? lanClient.playerId : null,
-  });
+  overlay.update(state, dt, { stage, cameraLabel: stage.rig.label, minimapEnabled });
   hud.render(state, {
-    mode: isLanActive() ? GAME_MODES.lan : game.mode,
+    mode: game.mode,
     aiDifficulty: game.aiDifficulty,
     soundEnabled: sound.enabled,
+    minimapEnabled,
     cameraMode: stage.rig.mode,
   });
 

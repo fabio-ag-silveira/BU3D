@@ -12,9 +12,9 @@ Precisa apenas do Node.js (sem `npm install`: o three.js já vem em `vendor/`).
 node server.js
 ```
 
-Depois abra `http://127.0.0.1:8000`. O mesmo servidor entrega o jogo e as salas do modo LAN. No Windows, dá para usar o `host-lan.bat`. Para parar, `Ctrl + C`.
+Depois abra `http://127.0.0.1:8000`. Para parar, `Ctrl + C`.
 
-Versão publicada (Versus IA e Versus Local, também no celular): <https://batalha3d.fabiosilveira.dev>
+Versão publicada (também no celular): <https://batalha3d.fabiosilveira.dev>
 
 ### Publicar no Cloudflare Workers
 
@@ -22,7 +22,7 @@ Versão publicada (Versus IA e Versus Local, também no celular): <https://batal
 npm run deploy
 ```
 
-O script `scripts/build-worker.mjs` gera `dist-worker/worker.js` com os arquivos do jogo embutidos e o `wrangler` publica no domínio configurado em `wrangler.jsonc`. Essa hospedagem é estática: o modo LAN fica desativado (com aviso) porque as salas dependem do `server.js`. Para uma pasta estática comum, `npm run build:web` gera `dist/`.
+O script `scripts/build-worker.mjs` gera `dist-worker/worker.js` com os arquivos do jogo embutidos e o `wrangler` publica no domínio configurado em `wrangler.jsonc`. Para uma pasta estática comum, `npm run build:web` gera `dist/`.
 
 ## Como jogar
 
@@ -32,9 +32,9 @@ Cada jogador começa a rodada com 100 HP. Vence a rodada quem destruir o carrinh
 |---|---|---|---|---|
 | Player 1 | W/S | A/D | Q/E | segure F e solte |
 | Player 2 | I/K | J/L | U/O | segure H e solte |
-| Jogador da vez (vs IA / LAN) | ↑/↓ | ←/→ | `,`/`.` ou PgDn/PgUp | segure Espaço e solte |
+| Jogador da vez | ↑/↓ | ←/→ | `,`/`.` ou PgDn/PgUp | segure Espaço e solte |
 
-No celular/tablet aparecem botões na tela: direcional (▲▼ elevação, ◀▶ girar), Frente/Ré, um botão grande de Fogo (segure e solte), Câmera e ☰ para abrir o painel (modo, dificuldade, câmeras). Arrastar na tela gira a câmera livre.
+No celular/tablet aparece uma barra de botões embaixo da tela, como na versão 2D: girar, ré, frente, câmera, elevação do cano e Atirar (segure e solte). O botão de menu abre o painel em gaveta e o do canto direito põe em tela cheia. Em pé, o jogo sugere girar o celular. Arrastar na tela gira a câmera livre.
 
 - **Força:** segurar o disparo enche a barra em vai-e-vem; soltar atira. A marca branca mostra a força do tiro anterior.
 - **Mira:** a linha pontilhada mostra o começo da trajetória (sem vento) com a força do último tiro, ou a força atual enquanto carrega.
@@ -47,7 +47,7 @@ No celular/tablet aparecem botões na tela: direcional (▲▼ elevação, ◀�
 
 ### Câmeras
 
-`C` troca de câmera (`Shift + C` volta). Também há botões no painel lateral.
+`C` troca de câmera (`Shift + C` volta). Também dá para escolher no painel lateral ou no botão CÂM do celular.
 
 | Câmera | Comportamento |
 |---|---|
@@ -61,16 +61,7 @@ As câmeras evitam atravessar prédios: se houver um na frente, a câmera se apr
 
 ### Atalhos
 
-`B` reinicia, `M` alterna IA/local, `N` muda a dificuldade da IA, `X` liga/desliga o som, `C` câmera.
-
-## Modo LAN
-
-1. O host roda `node server.js`, abre `http://127.0.0.1:8000`, entra em `LAN` e clica em `Criar sala`.
-2. O amigo abre o endereço do host no navegador (com Hamachi ou Radmin: `http://IP_DO_HOST_NA_REDE_VIRTUAL:8000`).
-3. Na tela `LAN`, as salas abertas aparecem automaticamente; é só clicar para entrar.
-4. Cada navegador assume `Player 1` ou `Player 2` automaticamente. A partida começa quando o segundo jogador entra e pausa se alguém sair.
-
-O servidor é a autoridade da partida. Os clientes só enviam teclas e recebem o estado; a cidade destruída é reconstruída a partir da lista de crateras, então todos veem os mesmos buracos.
+`B` reinicia, `M` alterna IA/local, `N` muda a dificuldade da IA, `X` liga/desliga o som, `C` câmera. O minimapa pode ser desligado no painel.
 
 ## O que mudou em relação ao BU3D original
 
@@ -85,7 +76,7 @@ O servidor é a autoridade da partida. Os clientes só enviam teclas e recebem o
 | Colisão por faixas de x **ou** z (acertava sem passar perto) | Hitbox orientada do carrinho e explosão esférica |
 | Fundo verde, roxo ou amarelo (caixa fechada) | Temas dia, entardecer e noite com céu, sol/lua, estrelas, nuvens, neblina, sombras e janelas acesas |
 | Câmeras fixas trocadas com `c`/`C` | Câmeras suaves, acompanhamento do projétil, câmera livre com mouse, anti-oclusão |
-| Só 2 jogadores locais | Versus IA (3 dificuldades), versus local e LAN |
+| Só 2 jogadores locais | Versus IA (3 dificuldades) e versus local, com controles de toque no celular |
 | Sem som | Efeitos sintetizados com WebAudio |
 | Texto em bitmap no canto | Painel lateral, placar sobre o jogo, bússola de vento, barra de força, banners, dano flutuante e minimapa |
 
@@ -93,15 +84,17 @@ A planta da cidade (21 prédios de 20, 30 e 50 de altura) e os spawns são os me
 
 ## Estrutura
 
-- [src/game.js](src/game.js): estado da partida, fases do turno, entrada, dano e quedas. Não usa DOM, então roda também no `server.js`.
+- [src/game.js](src/game.js): estado da partida, fases do turno, entrada, dano e quedas. Não usa DOM.
 - [src/ai.js](src/ai.js): IA que busca (giro, elevação, força) simulando trajetórias com vento, prédios e crateras, e lembra dos tiros que erraram.
 - [src/world.js](src/world.js): grade de voxels da cidade e crateras (derivada só da lista de crateras).
 - [src/physics.js](src/physics.js): trajetória com vento, cano, hitbox, apoio e bloqueio dos carrinhos.
 - [src/config.js](src/config.js): constantes de gameplay, planta da cidade, spawns, temas e presets da IA.
 - [src/render/](src/render): cena three.js — céu e skyline (`sky.js`), cidade e ruas (`city.js`), carrinhos (`tank.js`), partículas/destroços/explosões (`effects.js`), câmeras (`camera.js`) e a montagem de tudo (`stage.js`).
 - [src/overlay.js](src/overlay.js): camada HTML sobre o canvas (placar, timer, vento, força, banners, dano e minimapa).
-- [src/hud.js](src/hud.js), [src/input.js](src/input.js), [src/audio.js](src/audio.js), [src/lanClient.js](src/lanClient.js): painel lateral, teclado, som e cliente LAN.
-- [server.js](server.js): servidor HTTP estático + salas LAN.
+- [src/hud.js](src/hud.js), [src/input.js](src/input.js), [src/audio.js](src/audio.js): painel lateral, teclado/toque e som.
+- [server.js](server.js): servidor HTTP estático para jogar localmente.
+
+O modo LAN da primeira versão foi retirado por enquanto (fica no histórico do git, commit `e3e6223`).
 
 ### Coordenadas
 

@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#020304">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Batalha Urbana 3D</title>
   <link rel="stylesheet" href="./styles.css">
   <script type="importmap">
@@ -12,171 +15,189 @@
 </head>
 <body>
   <main class="app-shell">
-    <section class="hud" id="hudPanel">
-      <button type="button" class="hud-button drawer-close" id="drawerClose">Voltar ao jogo</button>
-      <div class="hud-card">
-        <p class="eyebrow">Estado da partida</p>
-        <h1>Batalha Urbana <span class="title-3d">3D</span></h1>
-        <p id="roundLabel" class="round-label"></p>
+    <section class="hud" id="hud" aria-label="Menu da partida">
+      <header class="hud-header">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <div>
+            <h1>Batalha Urbana <span class="brand-tag">3D</span></h1>
+            <p id="roundLabel" class="hud-meta"></p>
+          </div>
+        </div>
+        <button type="button" class="icon-button hud-close" id="menuClose" aria-label="Fechar menu">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </header>
+
+      <div class="hud-section">
         <p id="turnLabel" class="turn-label"></p>
         <p id="statusLabel" class="status-label"></p>
       </div>
 
-      <div class="hud-card controls-card">
-        <p class="eyebrow">Controles de partida</p>
-        <div class="control-group">
-          <p class="control-title">Modo</p>
-          <div class="button-row" id="modeButtons">
-            <button type="button" class="hud-button" data-mode="ai">Versus IA</button>
-            <button type="button" class="hud-button" data-mode="local">Versus Local</button>
-            <button type="button" class="hud-button" data-mode="lan">LAN</button>
+      <div class="hud-section scoreboard" aria-label="Placar">
+        <article class="player-row player-one">
+          <div class="player-head">
+            <span class="player-dot" aria-hidden="true"></span>
+            <span class="player-name">Player 1</span>
+            <span id="playerOneRounds" class="round-dots"></span>
           </div>
-        </div>
-        <div class="control-group">
-          <p class="control-title">Dificuldade IA</p>
-          <div class="button-row" id="difficultyButtons">
-            <button type="button" class="hud-button" data-difficulty="easy">Fácil</button>
-            <button type="button" class="hud-button" data-difficulty="medium">Média</button>
-            <button type="button" class="hud-button" data-difficulty="hard">Difícil</button>
-            <button type="button" class="hud-button" id="soundButton">Som: ligado</button>
-          </div>
-        </div>
-        <div class="control-group">
-          <p class="control-title">Câmera</p>
-          <div class="button-row" id="cameraButtons">
-            <button type="button" class="hud-button" data-camera="chase">Perseguição</button>
-            <button type="button" class="hud-button" data-camera="tactical">Tática</button>
-            <button type="button" class="hud-button" data-camera="overview">Geral</button>
-            <button type="button" class="hud-button" data-camera="top">Topo</button>
-            <button type="button" class="hud-button" data-camera="free">Livre</button>
-          </div>
-        </div>
-        <div class="control-group lan-group">
-          <p class="control-title">Sala LAN</p>
-          <div class="lan-fields">
-            <label class="field-label" for="serverUrlInput">Servidor</label>
-            <input id="serverUrlInput" class="hud-input" type="text" placeholder="http://192.168.0.10:8000">
-          </div>
-          <div class="button-row">
-            <button type="button" class="hud-button" id="createRoomButton">Criar sala</button>
-            <button type="button" class="hud-button" id="refreshRoomsButton">Atualizar</button>
-            <button type="button" class="hud-button" id="leaveRoomButton">Sair</button>
-          </div>
-          <div id="roomList" class="room-list"></div>
-          <p id="connectionStatus" class="note">Não conectado</p>
-        </div>
-      </div>
-
-      <div class="hud-grid">
-        <article class="hud-card player-card player-one">
-          <p class="eyebrow">Player 1</p>
-          <div id="playerOneStats" class="stats-panel"></div>
-          <div class="shortcut-list">
-            <span class="shortcut-pill"><strong>W/S</strong> elevação</span>
-            <span class="shortcut-pill"><strong>A/D</strong> gira</span>
-            <span class="shortcut-pill"><strong>Q/E</strong> ré/frente</span>
-            <span class="shortcut-pill"><strong>F</strong> segure e solte</span>
-          </div>
+          <div id="playerOneStats"></div>
         </article>
-
-        <article class="hud-card player-card player-two">
-          <p class="eyebrow">Player 2</p>
-          <div id="playerTwoStats" class="stats-panel"></div>
-          <div class="shortcut-list">
-            <span class="shortcut-pill"><strong>I/K</strong> elevação</span>
-            <span class="shortcut-pill"><strong>J/L</strong> gira</span>
-            <span class="shortcut-pill"><strong>U/O</strong> ré/frente</span>
-            <span class="shortcut-pill"><strong>H</strong> segure e solte</span>
+        <article class="player-row player-two">
+          <div class="player-head">
+            <span class="player-dot" aria-hidden="true"></span>
+            <span class="player-name">Player 2</span>
+            <span id="playerTwoRounds" class="round-dots"></span>
           </div>
+          <div id="playerTwoStats"></div>
         </article>
       </div>
 
-      <div class="hud-card footer-card">
-        <p class="eyebrow">Atalhos</p>
-        <div class="shortcut-list compact">
-          <span class="shortcut-pill"><strong>Setas , . Espaço</strong> jogador da vez</span>
-          <span class="shortcut-pill"><strong>C</strong> câmera</span>
-          <span class="shortcut-pill"><strong>M</strong> troca modo</span>
-          <span class="shortcut-pill"><strong>N</strong> muda IA</span>
-          <span class="shortcut-pill"><strong>X</strong> som</span>
-          <span class="shortcut-pill"><strong>B</strong> reinicia</span>
+      <div class="hud-section settings">
+        <div class="field">
+          <span class="field-label">Modo</span>
+          <div class="segmented" id="modeButtons" role="group" aria-label="Modo">
+            <button type="button" data-mode="ai">Versus IA</button>
+            <button type="button" data-mode="local">Local</button>
+          </div>
         </div>
+        <div class="field">
+          <span class="field-label">Dificuldade da IA</span>
+          <div class="segmented" id="difficultyButtons" role="group" aria-label="Dificuldade da IA">
+            <button type="button" data-difficulty="easy">Fácil</button>
+            <button type="button" data-difficulty="medium">Média</button>
+            <button type="button" data-difficulty="hard">Difícil</button>
+          </div>
+        </div>
+        <div class="field">
+          <span class="field-label">Câmera</span>
+          <div class="segmented segmented-wrap" id="cameraButtons" role="group" aria-label="Câmera">
+            <button type="button" data-camera="chase">Perseguição</button>
+            <button type="button" data-camera="tactical">Tática</button>
+            <button type="button" data-camera="free">Livre</button>
+            <button type="button" data-camera="overview">Geral</button>
+            <button type="button" data-camera="top">Topo</button>
+          </div>
+        </div>
+        <div class="toggle-list">
+          <button type="button" class="toggle" id="soundButton" aria-pressed="true">
+            <span>Som</span><span class="switch" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="toggle" id="minimapButton" aria-pressed="true">
+            <span>Minimapa</span><span class="switch" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="hud-section hud-help">
+        <details>
+          <summary>Controles do teclado</summary>
+          <table class="key-table">
+            <thead>
+              <tr><th></th><th>Player 1</th><th>Player 2</th><th>Da vez</th></tr>
+            </thead>
+            <tbody>
+              <tr><th>Elevação</th><td><kbd>W</kbd><kbd>S</kbd></td><td><kbd>I</kbd><kbd>K</kbd></td><td><kbd>↑</kbd><kbd>↓</kbd></td></tr>
+              <tr><th>Girar</th><td><kbd>A</kbd><kbd>D</kbd></td><td><kbd>J</kbd><kbd>L</kbd></td><td><kbd>←</kbd><kbd>→</kbd></td></tr>
+              <tr><th>Ré/frente</th><td><kbd>Q</kbd><kbd>E</kbd></td><td><kbd>U</kbd><kbd>O</kbd></td><td><kbd>,</kbd><kbd>.</kbd></td></tr>
+              <tr><th>Atirar</th><td><kbd>F</kbd></td><td><kbd>H</kbd></td><td><kbd>Espaço</kbd></td></tr>
+            </tbody>
+          </table>
+          <p class="key-note">Segure o tiro para carregar a força e solte para disparar. Arraste na tela para girar a câmera e use a roda do mouse para zoom.</p>
+          <p class="key-note"><kbd>B</kbd> nova partida · <kbd>M</kbd> modo · <kbd>N</kbd> dificuldade · <kbd>X</kbd> som · <kbd>C</kbd> câmera</p>
+        </details>
+      </div>
+
+      <div class="hud-footer">
+        <button type="button" class="primary-button" id="resetButton">Nova partida</button>
       </div>
     </section>
 
     <section class="stage-shell">
-      <canvas id="gameCanvas" aria-label="Campo de batalha 3D"></canvas>
+      <div class="stage-view">
+        <canvas id="gameCanvas" aria-label="Campo de batalha 3D"></canvas>
 
-      <div class="stage-overlay">
-        <div class="topbar">
-          <div class="tb-player" data-overlay-player="1">
-            <div class="tb-head">
-              <span class="tb-name">Player 1</span>
-              <span class="tb-rounds"></span>
+        <div class="stage-overlay">
+          <div class="topbar">
+            <div class="tb-player" data-overlay-player="1">
+              <div class="tb-head">
+                <span class="tb-name">Player 1</span>
+                <span class="tb-rounds"></span>
+              </div>
+              <div class="tb-hp"><span></span></div>
+              <div class="tb-meta">
+                <div class="tb-fuel" title="Combustível"><span></span></div>
+                <span class="tb-hp-value">100</span>
+              </div>
             </div>
-            <div class="tb-hp"><span></span></div>
-            <div class="tb-meta">
-              <div class="tb-fuel" title="Combustível"><span></span></div>
-              <span class="tb-hp-value">100</span>
+
+            <div class="tb-center">
+              <span class="tb-round">Rodada 1</span>
+              <span class="tb-timer">–</span>
+              <div class="tb-wind" title="Vento relativo à câmera">
+                <div class="wind-dial"><div class="wind-arrow"></div></div>
+                <span class="wind-value">0 km/h</span>
+              </div>
+            </div>
+
+            <div class="tb-player is-right" data-overlay-player="2">
+              <div class="tb-head">
+                <span class="tb-rounds"></span>
+                <span class="tb-name">Player 2</span>
+              </div>
+              <div class="tb-hp"><span></span></div>
+              <div class="tb-meta">
+                <span class="tb-hp-value">100</span>
+                <div class="tb-fuel" title="Combustível"><span></span></div>
+              </div>
             </div>
           </div>
 
-          <div class="tb-center">
-            <span class="tb-round">Rodada 1</span>
-            <span class="tb-timer">–</span>
-            <div class="tb-wind" title="Vento relativo à câmera">
-              <div class="wind-dial"><div class="wind-arrow"></div></div>
-              <span class="wind-value">0 km/h</span>
-            </div>
+          <div class="banner"></div>
+          <div class="float-layer"></div>
+
+          <div class="power-panel">
+            <div class="power-bar"><span class="power-fill"></span><span class="power-marker"></span></div>
+            <p class="aim-readout"></p>
           </div>
 
-          <div class="tb-player is-right" data-overlay-player="2">
-            <div class="tb-head">
-              <span class="tb-rounds"></span>
-              <span class="tb-name">Player 2</span>
-            </div>
-            <div class="tb-hp"><span></span></div>
-            <div class="tb-meta">
-              <span class="tb-hp-value">100</span>
-              <div class="tb-fuel" title="Combustível"><span></span></div>
-            </div>
-          </div>
-        </div>
+          <p class="camera-chip"></p>
+          <canvas class="minimap" aria-label="Minimapa"></canvas>
 
-        <div class="banner"></div>
-        <div class="float-layer"></div>
-
-        <div class="power-panel">
-          <div class="power-bar"><span class="power-fill"></span><span class="power-marker"></span></div>
-          <p class="aim-readout"></p>
-        </div>
-
-        <p class="camera-chip"></p>
-        <canvas class="minimap" aria-label="Minimapa"></canvas>
-
-        <button type="button" class="touch-menu" id="drawerOpen" aria-label="Menu">☰</button>
-        <button type="button" class="touch-camera" id="touchCamera">Câmera</button>
-
-        <div class="touch-controls" aria-hidden="true">
-          <div class="touch-pad">
-            <button type="button" class="touch-btn pad-up" data-touch="up" aria-label="Subir cano">▲</button>
-            <button type="button" class="touch-btn pad-left" data-touch="left" aria-label="Girar à esquerda">◀</button>
-            <button type="button" class="touch-btn pad-right" data-touch="right" aria-label="Girar à direita">▶</button>
-            <button type="button" class="touch-btn pad-down" data-touch="down" aria-label="Baixar cano">▼</button>
-          </div>
-          <div class="touch-actions">
-            <button type="button" class="touch-btn touch-small" data-touch="forward">Frente</button>
-            <button type="button" class="touch-btn touch-small" data-touch="back">Ré</button>
-            <button type="button" class="touch-btn touch-fire" data-touch="fire">Fogo</button>
+          <div id="webglError" class="webgl-error" hidden>
+            Seu navegador não conseguiu iniciar o WebGL. Ative a aceleração de hardware ou tente outro navegador.
           </div>
         </div>
 
-        <div id="webglError" class="webgl-error" hidden>
-          Seu navegador não conseguiu iniciar o WebGL. Ative a aceleração de hardware ou tente outro navegador.
+        <button type="button" class="stage-button menu-button" id="menuButton" aria-label="Abrir menu"><svg class="stage-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+        <button type="button" class="stage-button fullscreen-button" id="fullscreenButton" aria-label="Tela cheia" hidden><svg class="stage-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/></svg></button>
+
+        <div class="rotate-hint" id="rotateHint">
+          <div class="rotate-phone" aria-hidden="true"></div>
+          <p>Gire o celular para jogar na horizontal</p>
+          <button type="button" class="hud-button" id="rotateDismiss">Jogar assim mesmo</button>
+        </div>
+      </div>
+
+      <div class="touch-controls" id="touchControls">
+        <div class="touch-group">
+          <button type="button" class="touch-button" data-control="left" aria-label="Girar para a esquerda"><svg class="touch-icon is-left" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg></button>
+          <button type="button" class="touch-button" data-control="right" aria-label="Girar para a direita"><svg class="touch-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg></button>
+          <button type="button" class="touch-button touch-text" data-control="back" aria-label="Andar de ré">RÉ</button>
+          <button type="button" class="touch-button touch-text" data-control="forward" aria-label="Andar para frente">FRENTE</button>
+        </div>
+        <div class="touch-group">
+          <button type="button" class="touch-button touch-text touch-camera" id="touchCamera" aria-label="Trocar câmera">CÂM</button>
+          <button type="button" class="touch-button" data-control="up" aria-label="Levantar o canhão"><svg class="touch-icon is-up" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg></button>
+          <button type="button" class="touch-button" data-control="down" aria-label="Abaixar o canhão"><svg class="touch-icon is-down" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg></button>
+          <button type="button" class="touch-button touch-fire" data-control="fire" aria-label="Atirar: segure para carregar e solte">
+            ATIRAR<small>segure e solte</small>
+          </button>
         </div>
       </div>
     </section>
   </main>
+  <div class="hud-backdrop" id="hudBackdrop"></div>
 
   <script type="module" src="./src/main.js"></script>
 </body>

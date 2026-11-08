@@ -82,7 +82,7 @@ export class StageOverlay {
     this.el.banner.classList.remove("is-visible");
   }
 
-  update(state, dt, { stage, cameraLabel, localPlayerId }) {
+  update(state, dt, { stage, cameraLabel, localPlayerId = null, minimapEnabled = true }) {
     const current = state.players[state.turnIndex];
     state.players.forEach((player, index) => {
       const el = this.el.players[index];
@@ -150,7 +150,9 @@ export class StageOverlay {
     });
 
     this.updateFloating(dt, stage);
-    this.drawMinimap(state, stage);
+    if (minimapEnabled) {
+      this.drawMinimap(state, stage);
+    }
   }
 
   updateFloating(dt, stage) {

@@ -89,41 +89,27 @@ export class InputController {
     this.dispatch(entry.target, entry.control, false);
   }
 
-  // Botoes de toque: funcionam como as teclas do "jogador da vez".
-  attachTouch(buttons) {
-    buttons.forEach((button) => {
-      const id = `touch:${button.dataset.touch}`;
-      const binding = { player: "current", control: button.dataset.touch };
-      const press = (event) => {
-        event.preventDefault();
-        button.setPointerCapture?.(event.pointerId);
-        this.onActivity?.();
-        if (this.held.has(id)) {
-          return;
-        }
-        const target = this.resolveTarget(binding);
-        if (target === null) {
-          return;
-        }
-        button.classList.add("is-pressed");
-        this.held.set(id, { target, control: binding.control });
-        this.dispatch(target, binding.control, true);
-      };
-      const release = (event) => {
-        event.preventDefault();
-        button.classList.remove("is-pressed");
-        const entry = this.held.get(id);
-        if (!entry) {
-          return;
-        }
-        this.held.delete(id);
-        this.dispatch(entry.target, entry.control, false, { cancel: event.type === "pointercancel" });
-      };
-      button.addEventListener("pointerdown", press);
-      button.addEventListener("pointerup", release);
-      button.addEventListener("pointercancel", release);
-      button.addEventListener("contextmenu", (event) => event.preventDefault());
-    });
+  // Usado pelos botoes de toque: "segurar" equivale a uma tecla apertada.
+  press(id, binding) {
+    if (this.held.has(id)) {
+      return;
+    }
+    this.onActivity?.();
+    const target = this.resolveTarget(binding);
+    if (target === null) {
+      return;
+    }
+    this.held.set(id, { target, control: binding.control });
+    this.dispatch(target, binding.control, true);
+  }
+
+  release(id, options) {
+    const entry = this.held.get(id);
+    if (!entry) {
+      return;
+    }
+    this.held.delete(id);
+    this.dispatch(entry.target, entry.control, false, options);
   }
 
   // Ao perder o foco a carga e cancelada em vez de disparar.

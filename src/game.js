@@ -165,11 +165,7 @@ export class Game {
     this.mode = mode;
     this.aiPlan = null;
     this.aiThinkMs = AI_THINK_DELAY_MS;
-    this.status = this.mode === GAME_MODES.ai
-      ? "Modo versus IA ativado."
-      : this.mode === GAME_MODES.lan
-        ? "Modo LAN ativado."
-        : "Modo versus local ativado.";
+    this.status = this.mode === GAME_MODES.ai ? "Modo versus IA ativado." : "Modo versus local ativado.";
   }
 
   setAiDifficulty(difficulty) {
@@ -631,18 +627,5 @@ export class Game {
         falling: Boolean(player.fall),
       })),
     };
-  }
-
-  applyNetworkCommand(playerId, command) {
-    if (command === "reset") {
-      this.resetGame();
-      return true;
-    }
-
-    if (![1, 2].includes(playerId) || command?.type !== "input") {
-      return false;
-    }
-
-    return this.setInput(playerId, command.control, Boolean(command.pressed), { cancel: Boolean(command.cancel) });
   }
 }
