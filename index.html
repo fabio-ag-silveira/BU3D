@@ -34,24 +34,7 @@
         <p id="statusLabel" class="status-label"></p>
       </div>
 
-      <div class="hud-section scoreboard" aria-label="Placar">
-        <article class="player-row player-one">
-          <div class="player-head">
-            <span class="player-dot" aria-hidden="true"></span>
-            <span class="player-name">Player 1</span>
-            <span id="playerOneRounds" class="round-dots"></span>
-          </div>
-          <div id="playerOneStats"></div>
-        </article>
-        <article class="player-row player-two">
-          <div class="player-head">
-            <span class="player-dot" aria-hidden="true"></span>
-            <span class="player-name">Player 2</span>
-            <span id="playerTwoRounds" class="round-dots"></span>
-          </div>
-          <div id="playerTwoStats"></div>
-        </article>
-      </div>
+      <div class="hud-section scoreboard" id="scoreboard" aria-label="Placar"></div>
 
       <div class="hud-section settings">
         <div class="field">
@@ -59,6 +42,14 @@
           <div class="segmented" id="modeButtons" role="group" aria-label="Modo">
             <button type="button" data-mode="ai">Versus IA</button>
             <button type="button" data-mode="local">Local</button>
+          </div>
+        </div>
+        <div class="field">
+          <span class="field-label">Jogadores</span>
+          <div class="segmented" id="playerCountButtons" role="group" aria-label="Jogadores">
+            <button type="button" data-players="2">2</button>
+            <button type="button" data-players="3">3</button>
+            <button type="button" data-players="4">4</button>
           </div>
         </div>
         <div class="field">
@@ -127,17 +118,7 @@
 
         <div class="stage-overlay">
           <div class="topbar">
-            <div class="tb-player" data-overlay-player="1">
-              <div class="tb-head">
-                <span class="tb-name">Player 1</span>
-                <span class="tb-rounds"></span>
-              </div>
-              <div class="tb-hp"><span></span></div>
-              <div class="tb-meta">
-                <div class="tb-fuel" title="Combustível"><span></span></div>
-                <span class="tb-hp-value">100</span>
-              </div>
-            </div>
+            <div class="tb-side is-left"></div>
 
             <div class="tb-center">
               <span class="tb-round">Rodada 1</span>
@@ -149,17 +130,7 @@
               <span class="modifier-chip" hidden></span>
             </div>
 
-            <div class="tb-player is-right" data-overlay-player="2">
-              <div class="tb-head">
-                <span class="tb-rounds"></span>
-                <span class="tb-name">Player 2</span>
-              </div>
-              <div class="tb-hp"><span></span></div>
-              <div class="tb-meta">
-                <span class="tb-hp-value">100</span>
-                <div class="tb-fuel" title="Combustível"><span></span></div>
-              </div>
-            </div>
+            <div class="tb-side is-right"></div>
           </div>
 
           <div class="replay-bars" aria-hidden="true"><span class="replay-tag">Replay</span></div>

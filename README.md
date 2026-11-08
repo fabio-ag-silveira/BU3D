@@ -26,24 +26,29 @@ O script `scripts/build-worker.mjs` gera `dist-worker/worker.js` com os arquivos
 
 ## Como jogar
 
-Cada jogador começa a rodada com 100 HP. Vence a rodada quem destruir o carrinho adversário, e a partida vai para quem vencer 3 rodadas.
+Cada jogador começa a rodada com 100 HP. Vence a rodada quem sobrar de pé, e a partida vai para quem vencer 3 rodadas. Dá para jogar com 2, 3 ou 4 carrinhos, todos contra todos (no modo Versus IA, todos menos o Player 1 são IA).
 
-| | Elevação do cano | Girar | Andar (ré/frente) | Atirar |
-|---|---|---|---|---|
-| Player 1 | W/S | A/D | Q/E | segure F e solte |
-| Player 2 | I/K | J/L | U/O | segure H e solte |
-| Jogador da vez | ↑/↓ | ←/→ | `,`/`.` ou PgDn/PgUp | segure Espaço e solte |
+| | Elevação do cano | Girar | Andar (ré/frente) | Atirar | Arma |
+|---|---|---|---|---|---|
+| Player 1 | W/S | A/D | Q/E | segure F e solte | R |
+| Player 2 | I/K | J/L | U/O | segure H e solte | P |
+| Jogador da vez | ↑/↓ | ←/→ | `,`/`.` ou PgDn/PgUp | segure Espaço e solte | Tab |
 
-No celular/tablet aparece uma barra de botões embaixo da tela, como na versão 2D: girar, ré, frente, câmera, elevação do cano e Atirar (segure e solte). O botão de menu abre o painel em gaveta e o do canto direito põe em tela cheia. Em pé, o jogo sugere girar o celular. Arrastar na tela gira a câmera livre.
+No celular/tablet aparece uma barra de botões embaixo da tela, como na versão 2D: girar, ré, frente, câmera, arma, elevação do cano e Atirar (segure e solte). O botão de menu abre o painel em gaveta e o do canto direito põe em tela cheia. Em pé, o jogo sugere girar o celular. Arrastar na tela gira a câmera livre.
 
 - **Força:** segurar o disparo enche a barra em vai-e-vem; soltar atira. A marca branca mostra a força do tiro anterior.
 - **Mira:** a linha pontilhada mostra o começo da trajetória (sem vento) com a força do último tiro, ou a força atual enquanto carrega.
-- **Vento:** muda a cada turno e sopra em qualquer direção do plano. A bússola no topo mostra o vento *relativo à câmera* (seta para cima = vento para onde você está olhando). As nuvens e a fumaça seguem o vento.
-- **Explosões:** dano em área (acerto direto dá bônus), inclusive em quem atirou.
-- **Cidade destrutível:** os prédios são feitos de voxels e cada explosão abre uma cratera esférica. Carrinhos sem apoio caem, e quedas altas causam dano.
-- **Movimento:** cada turno tem combustível limitado (barra amarela sob o HP). Dá para descer de um telhado de propósito... e levar dano da queda.
+- **Armas:** Canhão (infinito), Fragmentação (abre em 4 no alto da trajetória), Quicante (ricocheteia 2 vezes na face do voxel atingido) e Pesado (explosão e cratera enormes). As especiais têm munição por rodada.
+- **Vento:** muda a cada turno e sopra em qualquer direção do plano. A bússola no topo mostra o vento *relativo à câmera* (seta para cima = vento para onde você está olhando).
+- **Explosões:** dano em área (acerto direto dá bônus), inclusive em quem atirou, e empurram o carrinho — dá para derrubar alguém do telhado.
+- **Cidade destrutível:** os prédios são voxels; cada explosão abre uma cratera. O que perde apoio desaba, com quem estiver em cima. Destruir o núcleo de uma ilha flutuante derruba a ilha.
+- **Movimento:** cada turno tem combustível limitado (barra amarela sob o HP). O carrinho sobe degraus de um voxel e cai de beiradas, com dano em quedas altas.
+- **Caixas de suprimento:** a partir do 3º turno caem caixas de paraquedas (Vida, Combustível, Munição). Pegue dirigindo até elas; um feixe de luz mostra onde estão.
+- **Condições da rodada** (a partir da 2ª): Tempestade (vento em dobro e chuva), Gravidade baixa, Neblina (visão curta e vento escondido) ou Arsenal (munição em dobro).
+- **Mapa:** no modo Dinâmico a cidade é sorteada a cada rodada (prédios, densidade, morros, ilhas flutuantes e passarelas entre telhados); o Clássico é a planta do BU3D original.
+- **Replay:** o tiro que decide a rodada é reprisado em câmera lenta (atirar pula).
 - **Timer:** 25 s por turno. Se acabar durante a carga, o tiro sai com a força atual; senão, a vez passa.
-- **Minimapa:** radar que gira com a câmera, com as alturas dos prédios, crateras, os dois carrinhos e a direção da mira.
+- **Minimapa:** radar que gira com a câmera, com alturas dos prédios, crateras, carrinhos, caixas e a direção da mira (pode ser desligado no painel).
 
 ### Câmeras
 
@@ -61,7 +66,7 @@ As câmeras evitam atravessar prédios: se houver um na frente, a câmera se apr
 
 ### Atalhos
 
-`B` reinicia, `M` alterna IA/local, `N` muda a dificuldade da IA, `X` liga/desliga o som, `C` câmera. O minimapa pode ser desligado no painel.
+`B` reinicia, `M` alterna IA/local, `N` muda a dificuldade da IA, `X` liga/desliga o som, `C` câmera. Número de jogadores, mapa e minimapa ficam no painel.
 
 ## O que mudou em relação ao BU3D original
 
@@ -76,20 +81,24 @@ As câmeras evitam atravessar prédios: se houver um na frente, a câmera se apr
 | Colisão por faixas de x **ou** z (acertava sem passar perto) | Hitbox orientada do carrinho e explosão esférica |
 | Fundo verde, roxo ou amarelo (caixa fechada) | Temas dia, entardecer e noite com céu, sol/lua, estrelas, nuvens, neblina, sombras e janelas acesas |
 | Câmeras fixas trocadas com `c`/`C` | Câmeras suaves, acompanhamento do projétil, câmera livre com mouse, anti-oclusão |
-| Só 2 jogadores locais | Versus IA (3 dificuldades) e versus local, com controles de toque no celular |
+| Só 2 jogadores locais | 2 a 4 jogadores, versus IA (3 dificuldades) e versus local, com controles de toque no celular |
+| Uma arma | Canhão, Fragmentação, Quicante e Pesado |
+| Cidade fixa | Mapa dinâmico com relevo, ilhas flutuantes, passarelas e desabamentos (o clássico continua disponível) |
+| — | Caixas de suprimento, condições de rodada, empurrão das explosões e replay do tiro final |
 | Sem som | Efeitos sintetizados com WebAudio |
 | Texto em bitmap no canto | Painel lateral, placar sobre o jogo, bússola de vento, barra de força, banners, dano flutuante e minimapa |
 
-A planta da cidade (21 prédios de 20, 30 e 50 de altura) e os spawns são os mesmos do original; foram acrescentados alguns spawns na rua.
+No mapa Clássico, a planta da cidade (21 prédios de 20, 30 e 50 de altura) e os spawns são os mesmos do original; foram acrescentados alguns spawns na rua.
 
 ## Estrutura
 
 - [src/game.js](src/game.js): estado da partida, fases do turno, entrada, dano e quedas. Não usa DOM.
-- [src/ai.js](src/ai.js): IA que busca (giro, elevação, força) simulando trajetórias com vento, prédios e crateras, e lembra dos tiros que erraram.
-- [src/world.js](src/world.js): grade de voxels da cidade e crateras (derivada só da lista de crateras).
+- [src/ai.js](src/ai.js): IA que busca (giro, elevação, força) simulando trajetórias com vento, gravidade, prédios e crateras, escolhe arma e alvo, e lembra dos tiros que erraram.
+- [src/world.js](src/world.js): grade de voxels, crateras e desabamento (tudo derivado do mapa + lista de crateras).
+- [src/map.js](src/map.js): gerador do mapa dinâmico (prédios, morros, ilhas, passarelas, spawns) e o mapa clássico.
 - [src/physics.js](src/physics.js): trajetória com vento, cano, hitbox, apoio e bloqueio dos carrinhos.
 - [src/config.js](src/config.js): constantes de gameplay, planta da cidade, spawns, temas e presets da IA.
-- [src/render/](src/render): cena three.js — céu e skyline (`sky.js`), cidade e ruas (`city.js`), carrinhos (`tank.js`), partículas/destroços/explosões (`effects.js`), câmeras (`camera.js`) e a montagem de tudo (`stage.js`).
+- [src/render/](src/render): cena three.js — céu e skyline (`sky.js`), cidade e ruas (`city.js`), carrinhos (`tank.js`), partículas/destroços/explosões (`effects.js`), câmeras (`camera.js`), replay (`replay.js`) e a montagem de tudo, com chuva, caixas e blocos desabando (`stage.js`).
 - [src/overlay.js](src/overlay.js): camada HTML sobre o canvas (placar, timer, vento, força, banners, dano e minimapa).
 - [src/hud.js](src/hud.js), [src/input.js](src/input.js), [src/audio.js](src/audio.js): painel lateral, teclado/toque e som.
 - [server.js](server.js): servidor HTTP estático para jogar localmente.

@@ -15,13 +15,9 @@ export class StageOverlay {
   constructor(root) {
     this.root = root;
     this.el = {
-      players: [1, 2].map((id) => ({
-        card: root.querySelector(`[data-overlay-player="${id}"]`),
-        hp: root.querySelector(`[data-overlay-player="${id}"] .tb-hp span`),
-        hpValue: root.querySelector(`[data-overlay-player="${id}"] .tb-hp-value`),
-        fuel: root.querySelector(`[data-overlay-player="${id}"] .tb-fuel span`),
-        rounds: root.querySelector(`[data-overlay-player="${id}"] .tb-rounds`),
-      })),
+      players: [],
+      sides: [root.querySelector(".tb-side.is-left"), root.querySelector(".tb-side.is-right")],
+      topbar: root.querySelector(".topbar"),
       round: root.querySelector(".tb-round"),
       timer: root.querySelector(".tb-timer"),
       windArrow: root.querySelector(".wind-arrow"),
@@ -84,8 +80,44 @@ export class StageOverlay {
     this.el.banner.classList.remove("is-visible");
   }
 
+  // Cards do placar do topo: impares a esquerda, pares a direita.
+  buildPlayerCards(players) {
+    this.el.sides.forEach((side) => side.replaceChildren());
+    this.el.players = players.map((player) => {
+      const right = player.id % 2 === 0;
+      const card = document.createElement("div");
+      card.className = `tb-player${right ? " is-right" : ""}`;
+      card.dataset.overlayPlayer = String(player.id);
+      card.style.setProperty("--team", player.color);
+      const name = `<span class="tb-name">${player.label}</span>`;
+      const rounds = '<span class="tb-rounds"></span>';
+      const fuel = '<div class="tb-fuel" title="Combustível"><span></span></div>';
+      const value = '<span class="tb-hp-value">100</span>';
+      card.innerHTML = `
+        <div class="tb-head">${right ? rounds + name : name + rounds}</div>
+        <div class="tb-hp"><span></span></div>
+        <div class="tb-meta">${right ? value + fuel : fuel + value}</div>
+      `;
+      this.el.sides[right ? 1 : 0].appendChild(card);
+      return {
+        card,
+        hp: card.querySelector(".tb-hp span"),
+        hpValue: card.querySelector(".tb-hp-value"),
+        fuel: card.querySelector(".tb-fuel span"),
+        rounds: card.querySelector(".tb-rounds"),
+      };
+    });
+    this.el.topbar.classList.toggle("is-crowded", players.length > 2);
+    [...this.cache.keys()].filter((key) => /^(hp|fuel|rounds|turn|you|dead)\d/.test(key)).forEach((key) => this.cache.delete(key));
+  }
+
   update(state, dt, { stage, cameraLabel, localPlayerId = null, minimapEnabled = true }) {
     const current = state.players[state.turnIndex];
+    const roster = state.players.map((player) => player.id).join(",");
+    if (roster !== this.roster) {
+      this.roster = roster;
+      this.buildPlayerCards(state.players);
+    }
     state.players.forEach((player, index) => {
       const el = this.el.players[index];
       const hp = Math.max(0, player.hp);
@@ -106,6 +138,9 @@ export class StageOverlay {
       });
       this.write(`you${index}`, localPlayerId === player.id, (value) => {
         el.card.classList.toggle("is-you", value);
+      });
+      this.write(`dead${index}`, player.hp <= 0, (value) => {
+        el.card.classList.toggle("is-dead", value);
       });
     });
 

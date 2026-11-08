@@ -143,8 +143,9 @@ export function isTankBlocked(world, position, yaw, direction, other) {
   ) {
     return true;
   }
-  if (other && Math.hypot(other.position.x - position.x, other.position.z - position.z) < 11 &&
-      Math.abs(other.position.y - position.y) < TANK.height) {
+  const others = Array.isArray(other) ? other : other ? [other] : [];
+  if (others.some((entry) => Math.hypot(entry.position.x - position.x, entry.position.z - position.z) < 11 &&
+      Math.abs(entry.position.y - position.y) < TANK.height)) {
     return true;
   }
 

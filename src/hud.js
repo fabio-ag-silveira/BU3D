@@ -70,14 +70,16 @@ export class Hud {
     this.write("round", (value) => { ui.roundLabel.textContent = value; }, roundText);
     this.write("turn", (value) => { ui.turnLabel.textContent = value; }, turnText);
     this.write("status", (value) => { ui.statusLabel.textContent = value; }, state.status);
-    this.write("p1", (value) => { ui.playerOneStats.innerHTML = value; }, renderStats(state.players[0]));
-    this.write("p2", (value) => { ui.playerTwoStats.innerHTML = value; }, renderStats(state.players[1]));
-    this.write("p1rounds", (value) => { ui.playerOneRounds.innerHTML = value; }, renderRounds(state.totalScore[0]));
-    this.write("p2rounds", (value) => { ui.playerTwoRounds.innerHTML = value; }, renderRounds(state.totalScore[1]));
-    this.write("active", (value) => {
-      ui.playerOneCard?.classList.toggle("is-turn", value === "1");
-      ui.playerTwoCard?.classList.toggle("is-turn", value === "2");
-    }, state.phase === "aiming" ? String(current.id) : "");
+    const scoreboard = state.players.map((player, index) => `
+      <article class="player-row${state.phase === "aiming" && index === state.turnIndex ? " is-turn" : ""}${player.hp <= 0 ? " is-dead" : ""}" style="--team: ${player.color}">
+        <div class="player-head">
+          <span class="player-dot" aria-hidden="true"></span>
+          <span class="player-name">${player.label}${mode === GAME_MODES.ai && player.id !== 1 ? " <small>IA</small>" : ""}</span>
+          <span class="round-dots">${renderRounds(state.totalScore[index] ?? 0)}</span>
+        </div>
+        ${renderStats(player)}
+      </article>`).join("");
+    this.write("scoreboard", (value) => { ui.scoreboard.innerHTML = value; }, scoreboard);
     this.write("mode", (value) => {
       ui.modeButtons.forEach((button) => setPressed(button, button.dataset.mode === value));
     }, mode);
@@ -90,6 +92,9 @@ export class Hud {
     this.write("camera", (value) => {
       ui.cameraButtons.forEach((button) => setPressed(button, button.dataset.camera === value));
     }, cameraMode);
+    this.write("players", (value) => {
+      ui.playerCountButtons.forEach((button) => setPressed(button, button.dataset.players === value));
+    }, String(state.players.length));
     this.write("map", (value) => {
       ui.mapButtons.forEach((button) => setPressed(button, button.dataset.map === value));
     }, mapKind);

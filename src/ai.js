@@ -140,7 +140,7 @@ function chooseWeapon(attacker, score) {
 // Busca em grade por (giro, elevacao, velocidade), considerando vento, predios e crateras.
 export function planAiShot(game) {
   const attacker = game.currentPlayer;
-  const target = game.opponent;
+  const target = game.pickAiTarget();
   const world = game.world;
   const preset = AI_PRESETS[game.aiDifficulty];
   const knowledge = preset.windKnowledge * (ROUND_MODIFIERS[game.modifier]?.aiWindScale ?? 1);

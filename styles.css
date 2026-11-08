@@ -1718,3 +1718,91 @@ body.minimap-off .minimap {
 .stage-overlay.is-replay .banner {
   top: 14%;
 }
+
+/* N jogadores: cores por variavel --team. */
+.player-row {
+  border-left: 3px solid transparent;
+}
+
+.player-row .player-dot,
+.player-row .round-dot.is-won,
+.player-row .hp-fill {
+  background: var(--team);
+}
+
+.player-row.is-turn {
+  border-color: color-mix(in srgb, var(--team) 55%, transparent);
+}
+
+.player-row.is-dead {
+  opacity: 0.45;
+}
+
+.player-name small {
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 0.62rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+}
+
+.tb-side {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tb-side.is-right {
+  justify-items: end;
+}
+
+.tb-side .tb-player {
+  width: 100%;
+}
+
+.tb-player.is-dead {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
+/* 3-4 jogadores: cards empilhados e mais baixos. */
+.topbar.is-crowded .tb-player {
+  padding: 5px 10px 6px;
+}
+
+.topbar.is-crowded .tb-hp {
+  margin-top: 3px;
+  height: 7px;
+}
+
+.topbar.is-crowded .tb-meta {
+  margin-top: 2px;
+}
+
+.topbar.is-crowded .tb-hp-value {
+  font-size: 0.68rem;
+}
+
+@media (max-height: 500px) {
+  .topbar.is-crowded .tb-side {
+    gap: 3px;
+  }
+
+  .topbar.is-crowded .tb-player {
+    padding: 2px 8px 3px;
+  }
+
+  .topbar.is-crowded .tb-head {
+    display: none;
+  }
+
+  .topbar.is-crowded .tb-hp {
+    margin-top: 2px;
+    height: 6px;
+  }
+}
+
+.topbar.is-crowded ~ .camera-chip {
+  top: 152px;
+}

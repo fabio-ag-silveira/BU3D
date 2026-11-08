@@ -12,12 +12,8 @@ const ui = {
   roundLabel: document.getElementById("roundLabel"),
   turnLabel: document.getElementById("turnLabel"),
   statusLabel: document.getElementById("statusLabel"),
-  playerOneStats: document.getElementById("playerOneStats"),
-  playerTwoStats: document.getElementById("playerTwoStats"),
-  playerOneRounds: document.getElementById("playerOneRounds"),
-  playerTwoRounds: document.getElementById("playerTwoRounds"),
-  playerOneCard: document.querySelector(".player-one"),
-  playerTwoCard: document.querySelector(".player-two"),
+  scoreboard: document.getElementById("scoreboard"),
+  playerCountButtons: Array.from(document.querySelectorAll("[data-players]")),
   modeButtons: Array.from(document.querySelectorAll("[data-mode]")),
   difficultyButtons: Array.from(document.querySelectorAll("[data-difficulty]")),
   cameraButtons: Array.from(document.querySelectorAll("[data-camera]")),
@@ -115,6 +111,13 @@ ui.modeButtons.forEach((button) => {
 ui.difficultyButtons.forEach((button) => {
   button.addEventListener("click", () => {
     game.setAiDifficulty(button.dataset.difficulty);
+    button.blur();
+  });
+});
+
+ui.playerCountButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    game.setPlayerCount(Number(button.dataset.players));
     button.blur();
   });
 });

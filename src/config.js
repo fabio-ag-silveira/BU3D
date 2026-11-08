@@ -214,7 +214,22 @@ export const PLAYER_DEFAULTS = [
       { x: 15, y: 0, z: 160 },
     ],
   },
+  {
+    id: 3,
+    label: "Player 3",
+    color: "#4ade80",
+    shade: "#167a3c",
+    spawns: [],
+  },
+  {
+    id: 4,
+    label: "Player 4",
+    color: "#fbbf24",
+    shade: "#9a6b0b",
+    spawns: [],
+  },
 ];
+export const PLAYER_COUNTS = [2, 3, 4];
 export const MIN_SPAWN_DISTANCE = 55;
 
 // Os tres fundos do legado (verde, roxo e amarelo) viraram temas completos.

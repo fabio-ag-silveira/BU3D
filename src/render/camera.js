@@ -213,7 +213,11 @@ export class CameraRig {
   update(state, dt, { projectileFocus = null, shake, world }) {
     const projectilePosition = projectileFocus?.position ?? null;
     const current = state.players[state.turnIndex];
-    const opponent = state.players[1 - state.turnIndex];
+    const opponent = state.players
+      .filter((player) => player !== current && player.hp > 0)
+      .sort((a, b) => Math.hypot(a.position.x - current.position.x, a.position.z - current.position.z) -
+        Math.hypot(b.position.x - current.position.x, b.position.z - current.position.z))[0]
+      ?? state.players.find((player) => player !== current);
     let rate = 3.2;
     let targetRate = null;
     let focus = null;

@@ -19,6 +19,7 @@ import {
   MIN_SPAWN_DISTANCE,
   MOVE_SPEED,
   PHASE_DELAYS,
+  PLAYER_COUNTS,
   PLAYER_DEFAULTS,
   PROJECTILE_SUBSTEP,
   ROUND_MODIFIERS,
@@ -70,24 +71,41 @@ function weightedSpawn(candidates) {
   return randomItem(candidates.filter((spawn) => spawn.kind === kind));
 }
 
-// Classico: listas fixas do legado. Dinamico: telhados, ilhas e ruas validos no mapa sorteado.
-function pickSpawns(layout, world) {
+// Escolhe pontos afastados entre si: o primeiro sorteado, os outros maximizando a menor distancia.
+function spreadSpawns(candidates, count, first) {
+  const chosen = [first];
+  while (chosen.length < count) {
+    const scored = candidates
+      .filter((spawn) => !chosen.includes(spawn))
+      .map((spawn) => ({ spawn, distance: Math.min(...chosen.map((other) => distance2d(other, spawn))) }))
+      .sort((a, b) => b.distance - a.distance);
+    if (!scored.length) {
+      chosen.push(first);
+      continue;
+    }
+    // Sorteia entre os mais afastados para variar sem juntar ninguem.
+    const best = scored[0].distance;
+    const pool = scored.filter((entry) => entry.distance >= Math.min(best, Math.max(best * 0.75, 45)));
+    const varied = pool.filter((entry) => !chosen.some((other) => other.kind === entry.spawn.kind));
+    chosen.push(weightedSpawn((varied.length && Math.random() < 0.6 ? varied : pool).map((entry) => entry.spawn)));
+  }
+  return chosen;
+}
+
+// Classico: listas fixas do legado. Dinamico: telhados, ilhas, passarelas e ruas validos.
+function pickSpawns(layout, world, count) {
   if (layout.playerSpawns) {
-    const first = randomItem(layout.playerSpawns[0]);
-    const options = layout.playerSpawns[1].filter((spawn) => distance2d(spawn, first) >= MIN_SPAWN_DISTANCE);
-    return [first, randomItem(options.length ? options : layout.playerSpawns[1])];
+    if (count === 2) {
+      const first = randomItem(layout.playerSpawns[0]);
+      const options = layout.playerSpawns[1].filter((spawn) => distance2d(spawn, first) >= MIN_SPAWN_DISTANCE);
+      return [first, randomItem(options.length ? options : layout.playerSpawns[1])];
+    }
+    const all = layout.playerSpawns.flat();
+    return spreadSpawns(all, count, randomItem(all));
   }
   const valid = layout.spawns.filter((spawn) =>
     [0, 90].some((yaw) => isTankSpaceFree(world, spawn, yaw)) && isTankSupported(world, spawn, 0));
-  const first = weightedSpawn(valid);
-  for (const minimum of [70, 55, 40, 0]) {
-    const options = valid.filter((spawn) => spawn !== first && distance2d(spawn, first) >= minimum);
-    if (options.length) {
-      const varied = options.filter((spawn) => spawn.kind !== first.kind);
-      return [first, weightedSpawn(varied.length && Math.random() < 0.6 ? varied : options)];
-    }
-  }
-  return [first, first];
+  return spreadSpawns(valid, count, weightedSpawn(valid));
 }
 
 function pickModifier(round) {
@@ -105,11 +123,13 @@ function pickModifier(round) {
   return "normal";
 }
 
-function createPlayers(layout, world, ammoScale = 1) {
-  const spawns = pickSpawns(layout, world);
-  return PLAYER_DEFAULTS.map((template, index) => {
+function createPlayers(layout, world, count, ammoScale = 1) {
+  const spawns = pickSpawns(layout, world, count);
+  return PLAYER_DEFAULTS.slice(0, count).map((template, index) => {
     const position = { ...spawns[index] };
-    const other = spawns[1 - index];
+    const other = spawns
+      .filter((_, otherIndex) => otherIndex !== index)
+      .sort((a, b) => distance2d(a, position) - distance2d(b, position))[0];
     return {
       id: template.id,
       label: template.label,
@@ -151,7 +171,8 @@ export class Game {
     this.mapKind = MAP_KINDS.dynamic.id;
     this.events = [];
     this.eventSeq = 0;
-    this.inputs = { 1: createInputState(), 2: createInputState() };
+    this.inputs = Object.fromEntries(PLAYER_DEFAULTS.map((template) => [template.id, createInputState()]));
+    this.playerCount = 2;
     this.aiMissMemory = new Map();
     this.projectileSeq = 0;
     this.crateSeq = 0;
@@ -163,12 +184,36 @@ export class Game {
     return this.players[this.turnIndex];
   }
 
+  // Alvo principal do jogador da vez: o inimigo vivo mais proximo.
   get opponent() {
-    return this.players[1 - this.turnIndex];
+    const current = this.currentPlayer;
+    return this.players
+      .filter((player) => player !== current && player.hp > 0)
+      .sort((a, b) => distance3d(a.position, current.position) - distance3d(b.position, current.position))[0]
+      ?? this.players.find((player) => player !== current);
   }
 
   get isAiTurn() {
-    return this.mode === GAME_MODES.ai && this.currentPlayer.id === 2;
+    return this.mode === GAME_MODES.ai && this.currentPlayer.id !== 1;
+  }
+
+  // A IA mira no mais proximo, ou as vezes no mais fraco.
+  pickAiTarget() {
+    const current = this.currentPlayer;
+    const enemies = this.players.filter((player) => player !== current && player.hp > 0);
+    if (enemies.length > 1 && Math.random() < 0.35) {
+      return enemies.sort((a, b) => a.hp - b.hp)[0];
+    }
+    return this.opponent;
+  }
+
+  setPlayerCount(count) {
+    if (!PLAYER_COUNTS.includes(count) || count === this.playerCount) {
+      return;
+    }
+    this.playerCount = count;
+    this.resetGame();
+    this.status = `Nova partida com ${count} jogadores.`;
   }
 
   emit(type, data = {}) {
@@ -186,7 +231,7 @@ export class Game {
 
   resetGame() {
     this.round = -1;
-    this.totalScore = [0, 0];
+    this.totalScore = Array(this.playerCount).fill(0);
     this.matchWinner = null;
     this.resetRound();
     this.status = "Nova partida. Primeiro a vencer 3 rodadas leva!";
@@ -194,7 +239,7 @@ export class Game {
 
   resetRound() {
     this.round += 1;
-    this.turnIndex = this.round % 2;
+    this.turnIndex = this.round % this.playerCount;
     this.turnsInRound = 0;
     this.theme = randomItem(Object.keys(SKY_THEMES));
     this.modifier = pickModifier(this.round);
@@ -212,7 +257,7 @@ export class Game {
     this.charge = { active: false, power: 0, direction: 1 };
     this.wind = { x: 0, z: 0 };
     this.turnTimeMs = TURN_TIME_MS;
-    this.players = createPlayers(this.layout, this.world, modifier.ammoScale ?? 1);
+    this.players = createPlayers(this.layout, this.world, this.playerCount, modifier.ammoScale ?? 1);
     this.aiPlan = null;
     this.aiThinkMs = 0;
     this.aiMissMemory.clear();
@@ -429,7 +474,7 @@ export class Game {
       y: player.position.y,
       z: player.position.z + forward.z * direction * distance,
     };
-    const other = this.players.find((entry) => entry !== player);
+    const other = this.players.filter((entry) => entry !== player);
     if (isTankBlocked(this.world, next, player.yaw, direction, other)) {
       // Sobe degraus de um voxel (morros, escombros, telhado vizinho), avancando ate apoiar no degrau.
       const step = [0, 1, 2]
@@ -858,26 +903,36 @@ export class Game {
   }
 
   resolveTurn() {
-    const defeated = this.players.filter((player) => player.hp <= 0);
-    if (defeated.length) {
-      this.finishRound(defeated);
+    // Quem acabou de ser destruido vira sucata e sai da vez.
+    this.players.forEach((player) => {
+      if (player.hp <= 0 && !player.destroyed) {
+        player.destroyed = true;
+        this.emit("destroyed", { playerId: player.id, label: player.label, ...player.position });
+      }
+    });
+    const alive = this.players.filter((player) => player.hp > 0);
+    if (alive.length <= 1) {
+      this.finishRound(alive[0] ?? null);
       return;
     }
-    this.turnIndex = 1 - this.turnIndex;
+    for (let step = 1; step <= this.players.length; step += 1) {
+      const index = (this.turnIndex + step) % this.players.length;
+      if (this.players[index].hp > 0) {
+        this.turnIndex = index;
+        break;
+      }
+    }
     this.beginTurn();
   }
 
-  finishRound(defeated) {
-    defeated.forEach((player) => this.emit("destroyed", { playerId: player.id, ...player.position }));
-
-    if (defeated.length === this.players.length) {
-      this.status = "Empate! Os dois carrinhos foram destruídos.";
+  finishRound(winner) {
+    if (!winner) {
+      this.status = "Empate! Ninguém sobrou de pé.";
       this.emit("roundEnd", { winnerId: null, label: null });
       this.setPhase("roundOver", PHASE_DELAYS.roundOver);
       return;
     }
 
-    const winner = this.players.find((player) => player.hp > 0);
     this.totalScore[winner.id - 1] += 1;
 
     if (this.totalScore[winner.id - 1] >= ROUNDS_TO_WIN) {
@@ -988,6 +1043,7 @@ export class Game {
       round: this.round,
       turnIndex: this.turnIndex,
       totalScore: [...this.totalScore],
+      playerCount: this.playerCount,
       matchWinner: this.matchWinner,
       status: this.status,
       theme: this.theme,

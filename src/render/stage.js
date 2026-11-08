@@ -360,6 +360,12 @@ export class Stage {
   }
 
   updateTanks(state, dt, time) {
+    this.tanks.forEach((tank, id) => {
+      if (!state.players.some((player) => player.id === id)) {
+        this.scene.remove(tank.group);
+        this.tanks.delete(id);
+      }
+    });
     state.players.forEach((player, index) => {
       let tank = this.tanks.get(player.id);
       if (!tank) {
