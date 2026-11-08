@@ -8,6 +8,8 @@ import {
   DEFAULT_AI_DIFFICULTY,
   DEFAULT_GAME_MODE,
   FUEL_PER_TURN,
+  KNOCKBACK_SCALE,
+  KNOCKBACK_SECONDS,
   GAME_MODES,
   GRAVITY,
   MAX_CRATERS,
@@ -39,6 +41,7 @@ import {
   isInsideTankHitbox,
   isOutOfBounds,
   isTankBlocked,
+  isTankSpaceFree,
   isTankSupported,
   powerToVelocity,
   projectileAt,
@@ -259,19 +262,24 @@ export class Game {
         }
         break;
       case "aiming":
+        this.updatePush(dt);
         this.updateFalling(dt);
         this.updateAiming(dt);
         break;
       case "flying":
+        this.updatePush(dt);
         this.updateFalling(dt);
         this.updateProjectiles(dt);
         break;
-      case "settling":
-        if (!this.updateFalling(dt) && this.phaseMs <= 0) {
+      case "settling": {
+        const pushing = this.updatePush(dt);
+        if (!this.updateFalling(dt) && !pushing && this.phaseMs <= 0) {
           this.resolveTurn();
         }
         break;
+      }
       case "roundOver":
+        this.updatePush(dt);
         this.updateFalling(dt);
         if (this.phaseMs <= 0) {
           this.resetRound();
@@ -557,6 +565,7 @@ export class Game {
 
     this.players.forEach((player) => {
       const distance = distance3d(getTankCenter(player), point);
+      this.applyKnockback(player, point, distance, weapon, attacker);
       let damage = distance < weapon.radius ? weapon.damage * (1 - distance / weapon.radius) : 0;
       if (player === directTarget) {
         damage += weapon.directBonus;
@@ -596,6 +605,59 @@ export class Game {
       this.rememberAiMiss();
     }
     this.setPhase("settling", PHASE_DELAYS.settle);
+  }
+
+  // Explosoes empurram o carrinho para longe do centro (no plano), como um deslize curto.
+  applyKnockback(player, point, distance, weapon, attacker) {
+    const reach = weapon.radius * 1.25;
+    if (distance >= reach) {
+      return;
+    }
+    let dx = player.position.x - point.x;
+    let dz = player.position.z - point.z;
+    let length = Math.hypot(dx, dz);
+    if (length < 0.5) {
+      dx = player.position.x - attacker.position.x;
+      dz = player.position.z - attacker.position.z;
+      length = Math.hypot(dx, dz) || 1;
+    }
+    const strength = weapon.radius * KNOCKBACK_SCALE * (1 - distance / reach);
+    if (strength < 0.6) {
+      return;
+    }
+    const speed = strength / KNOCKBACK_SECONDS;
+    player.push = { vx: (dx / length) * speed, vz: (dz / length) * speed, time: KNOCKBACK_SECONDS };
+    this.emit("pushed", { playerId: player.id, ...player.position, strength });
+  }
+
+  updatePush(dt) {
+    const seconds = dt / 1000;
+    let anyPushed = false;
+    this.players.forEach((player) => {
+      const push = player.push;
+      if (!push) {
+        return;
+      }
+      const step = Math.min(seconds, push.time);
+      push.time -= step;
+      const fade = Math.max(0.2, push.time / KNOCKBACK_SECONDS);
+      const next = {
+        x: player.position.x + push.vx * step * fade * 1.6,
+        y: player.position.y,
+        z: player.position.z + push.vz * step * fade * 1.6,
+      };
+      if (isTankSpaceFree(this.world, next, player.yaw)) {
+        player.position = next;
+      } else {
+        push.time = 0;
+      }
+      if (push.time <= 0) {
+        player.push = null;
+      } else {
+        anyPushed = true;
+      }
+    });
+    return anyPushed;
   }
 
   applyDamage(player, amount) {
@@ -781,6 +843,7 @@ export class Game {
         fuel: player.fuel,
         lastPower: player.lastPower,
         falling: Boolean(player.fall),
+        pushed: Boolean(player.push),
         weapon: player.weapon,
         ammo: { ...player.ammo },
       })),

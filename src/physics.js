@@ -158,3 +158,24 @@ export function isTankBlocked(world, position, yaw, direction, other) {
   }
   return false;
 }
+
+// O casco inteiro cabe na posicao? (usado pelo empurrao das explosoes)
+export function isTankSpaceFree(world, position, yaw) {
+  const margin = Math.max(TANK.halfWidth, TANK.halfLength);
+  if (
+    position.x < ARENA.minX + margin || position.x > ARENA.maxX - margin ||
+    position.z < ARENA.minZ + margin || position.z > ARENA.maxZ - margin
+  ) {
+    return false;
+  }
+  for (const x of [-TANK.halfWidth + 0.4, 0, TANK.halfWidth - 0.4]) {
+    for (const z of [-TANK.halfLength + 0.4, 0, TANK.halfLength - 0.4]) {
+      for (const height of [1, 3.5]) {
+        if (world.isBuildingSolid(toTankWorld({ x, y: height, z }, position, yaw))) {
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}

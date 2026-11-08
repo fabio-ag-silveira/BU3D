@@ -119,6 +119,9 @@ export const FUEL_PER_TURN = 30;
 export const TURN_TIME_MS = 25000;
 export const CART_GRAVITY = 70;
 export const SAFE_FALL = 8;
+// Empurrao: distancia maxima (no centro da explosao) = raio da arma * KNOCKBACK_SCALE.
+export const KNOCKBACK_SCALE = 0.9;
+export const KNOCKBACK_SECONDS = 0.45;
 export const PHASE_DELAYS = {
   roundStart: 1800,
   settle: 900,

@@ -353,6 +353,11 @@ export class Effects {
       case "weapon":
         sound?.tick(false);
         break;
+      case "pushed":
+        this.burst({ x: event.x, y: event.y + 0.6, z: event.z }, {
+          count: Math.round(6 + event.strength), colors: ["#b9a58a", "#8f8170"], speed: 8, life: 1, size: 3, gravity: -1, grow: 2.5, drag: 2.5, alpha: 0.5, spread: 3,
+        });
+        break;
       case "explosion": {
         this.spawnFireball(event, event.radius * 0.75);
         this.spawnRing(event, event.radius * 1.6);
