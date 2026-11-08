@@ -28,7 +28,6 @@ export class StageOverlay {
       powerMarker: root.querySelector(".power-marker"),
       readout: root.querySelector(".aim-readout"),
       weapon: root.querySelector(".weapon-chip"),
-      targetInfo: root.querySelector(".aim-target"),
       feedback: root.querySelector(".aim-feedback"),
       targetLayer: root.querySelector(".target-layer"),
       camera: root.querySelector(".camera-chip"),
@@ -46,9 +45,9 @@ export class StageOverlay {
   }
 
   // Retorno logo depois do tiro (fica alguns segundos na tela).
-  showShotFeedback(text) {
+  showShotFeedback(text, seconds = 3) {
     if (text) {
-      this.flashFeedback = { text, life: 3 };
+      this.flashFeedback = { text, life: seconds };
     }
   }
 
@@ -102,27 +101,11 @@ export class StageOverlay {
         this.flashFeedback = null;
       }
     }
-    const feedback = this.flashFeedback?.text ?? (state.phase === "aiming" ? current.feedback : null);
-    this.write("feedback", feedback ?? "", (value) => {
+    // O aviso do ultimo tiro e temporario: logo depois do tiro e no comeco da proxima vez.
+    const feedback = this.flashFeedback?.text ?? "";
+    this.write("feedback", feedback, (value) => {
       this.el.feedback.textContent = value;
       this.el.feedback.hidden = !value;
-    });
-
-    let info = "";
-    if (state.phase === "aiming") {
-      const enemies = state.players.filter((player) => player !== current && player.hp > 0);
-      const target = enemies.find((player) => player.id === current.lockedTargetId) ??
-        enemies.sort((a, b) => Math.hypot(a.position.x - current.position.x, a.position.z - current.position.z) -
-          Math.hypot(b.position.x - current.position.x, b.position.z - current.position.z))[0];
-      if (target) {
-        const distance = Math.round(Math.hypot(target.position.x - current.position.x, target.position.z - current.position.z));
-        const height = Math.round(target.position.y - current.position.y);
-        const relative = height > 1 ? ` · ${height} m acima` : height < -1 ? ` · ${-height} m abaixo` : " · mesma altura";
-        info = `Alvo: ${target.label} · ${distance} m${relative}`;
-      }
-    }
-    this.write("targetInfo", info, (value) => {
-      this.el.targetInfo.textContent = value;
     });
   }
 
@@ -273,15 +256,17 @@ export class StageOverlay {
         this.el.powerMarker.style.display = value === null ? "none" : "block";
         this.el.powerMarker.style.left = `${(value ?? 0) * 100}%`;
       });
+      // Uma linha so: arma, barra de forca e angulo (vira % de forca enquanto carrega).
       const weapon = WEAPONS[current.weapon] ?? WEAPONS.standard;
       const ammo = weapon.ammo === null ? "" : ` ×${current.ammo[weapon.id]}`;
-      this.write("readout", `${current.label}|${Math.round(current.elevation)}|${Math.round(current.yaw)}|${state.charge.active}|${weapon.id}${ammo}`, () => {
-        const yaw = ((Math.round(current.yaw) % 360) + 360) % 360;
-        this.el.weapon.textContent = `${weapon.label}${ammo}`;
+      this.write("weaponChip", `${weapon.id}${ammo}`, () => {
+        this.el.weapon.textContent = `${weapon.short}${ammo}`;
+        this.el.weapon.title = weapon.label;
         this.el.weapon.style.setProperty("--weapon-color", weapon.color);
-        this.el.readout.textContent = state.charge.active
-          ? `${current.label} · solte para atirar`
-          : `${current.label} · elevação ${Math.round(current.elevation)}° · rumo ${yaw}°`;
+      });
+      const readout = state.charge.active ? `${Math.round(state.charge.power * 100)}%` : `${Math.round(current.elevation)}°`;
+      this.write("readout", readout, (value) => {
+        this.el.readout.textContent = value;
       });
       this.el.power.style.setProperty("--player-color", current.color);
     }

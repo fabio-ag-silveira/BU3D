@@ -462,6 +462,9 @@ export class Effects {
         break;
       case "turn":
         overlay?.showBanner(`Vez de ${event.label}`, { color, duration: 1.2, small: true });
+        if (player?.feedback) {
+          overlay?.showShotFeedback(player.feedback, 4);
+        }
         sound?.turn();
         break;
       case "roundStart":
